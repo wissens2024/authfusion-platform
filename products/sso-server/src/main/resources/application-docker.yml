@@ -1,0 +1,9 @@
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://postgres:5432/authfusion_sso}
+    username: ${SPRING_DATASOURCE_USERNAME:authfusion}
+    password: ${SPRING_DATASOURCE_PASSWORD:authfusion-secret}
+
+authfusion:
+  sso:
+    issuer: ${AUTHFUSION_SSO_ISSUER:http://localhost:8080}

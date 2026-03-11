@@ -1,0 +1,20 @@
+# AuthFusion Platform - Code Owners
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# TOE 코드 (products/) - 보안 팀 리뷰 필수
+products/sso-server/       @authfusion/security-team @authfusion/backend-team
+products/sso-agent/        @authfusion/security-team @authfusion/backend-team
+products/admin-console/    @authfusion/frontend-team
+
+# CC 문서 - 보안 팀
+docs/cc/                   @authfusion/security-team
+
+# CI/CD - 인프라 팀
+ci/                        @authfusion/infra-team
+docker-compose*.yml        @authfusion/infra-team
+
+# 릴리즈 인프라
+release/                   @authfusion/security-team @authfusion/infra-team
+
+# 플랫폼 확장 (비-TOE)
+platform/                  @authfusion/platform-team

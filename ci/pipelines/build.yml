@@ -1,0 +1,106 @@
+# ============================================================================
+# AuthFusion Platform - Build Pipeline
+# TOE 및 플랫폼 구성요소 빌드
+# ============================================================================
+name: Build
+
+on:
+  push:
+    branches: [main, 'release/**']
+  pull_request:
+    branches: [main]
+
+env:
+  JAVA_VERSION: '17'
+  NODE_VERSION: '20'
+
+jobs:
+  # --------------------------------------------------------------------------
+  # SSO Server Build (TOE)
+  # --------------------------------------------------------------------------
+  sso-server:
+    name: SSO Server
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: products/sso-server
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: Build
+        run: mvn clean package -DskipTests -q
+
+      - name: Run Tests
+        run: mvn test
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sso-server-jar
+          path: products/sso-server/target/sso-server-*.jar
+
+  # --------------------------------------------------------------------------
+  # SSO Agent Build (TOE)
+  # --------------------------------------------------------------------------
+  sso-agent:
+    name: SSO Agent
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: products/sso-agent
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: Build
+        run: mvn clean package -DskipTests -q
+
+      - name: Run Tests
+        run: mvn test
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sso-agent-jar
+          path: products/sso-agent/target/sso-agent-*.jar
+
+  # --------------------------------------------------------------------------
+  # Admin Console Build
+  # --------------------------------------------------------------------------
+  admin-console:
+    name: Admin Console
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: products/admin-console
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: products/admin-console/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build

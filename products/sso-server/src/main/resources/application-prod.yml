@@ -1,0 +1,36 @@
+# ============================================================================
+# AuthFusion SSO Server - 운영 프로파일 (192.168.0.115)
+# 활성화: --spring.profiles.active=prod
+# DB: authfusion_db / Schema: sso / User: sso_user
+# 도메인: sso.aines.kr
+# ============================================================================
+
+spring:
+  datasource:
+    url: jdbc:postgresql://192.168.0.115:5432/authfusion_db?currentSchema=sso
+    username: sso_user
+    password: ${DB_PASSWORD:AuthFusion2026!}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+  jpa:
+    properties:
+      hibernate:
+        default_schema: sso
+  flyway:
+    schemas: sso
+    default-schema: sso
+
+authfusion:
+  sso:
+    issuer: https://sso.aines.kr
+    cors:
+      allowed-origins: https://sso.aines.kr,http://192.168.0.115:3000,http://localhost:3000
+
+server:
+  forward-headers-strategy: framework
+
+logging:
+  level:
+    com.authfusion.sso: INFO
+    org.hibernate.SQL: WARN

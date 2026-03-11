@@ -1,0 +1,103 @@
+# ============================================================================
+# AuthFusion Platform - Security Scan Pipeline
+# SCA (Software Composition Analysis) + SAST
+# ============================================================================
+name: Security Scan
+
+on:
+  push:
+    branches: [main, 'release/**']
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 6 * * 1'  # 매주 월요일 06:00 UTC
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Dependency Vulnerability Scan (SCA)
+  # --------------------------------------------------------------------------
+  dependency-scan:
+    name: Dependency Scan
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+
+      # OWASP Dependency-Check (Java)
+      - name: SSO Server - OWASP Dependency Check
+        working-directory: products/sso-server
+        run: |
+          mvn org.owasp:dependency-check-maven:check \
+            -DfailBuildOnCVSS=7 \
+            -DsuppressionFile=../../ci/policies/dependency-suppressions.xml \
+            -q || true
+
+      - name: SSO Agent - OWASP Dependency Check
+        working-directory: products/sso-agent
+        run: |
+          mvn org.owasp:dependency-check-maven:check \
+            -DfailBuildOnCVSS=7 \
+            -q || true
+
+      # npm audit (Node.js)
+      - name: Admin Console - npm audit
+        working-directory: products/admin-console
+        run: npm audit --audit-level=high || true
+
+  # --------------------------------------------------------------------------
+  # Static Application Security Testing (SAST)
+  # --------------------------------------------------------------------------
+  sast:
+    name: SAST
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      # SpotBugs + Find Security Bugs
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+
+      - name: SSO Server - SpotBugs Security
+        working-directory: products/sso-server
+        run: |
+          mvn compile com.github.spotbugs:spotbugs-maven-plugin:check \
+            -Dspotbugs.effort=Max \
+            -Dspotbugs.threshold=Low || true
+
+  # --------------------------------------------------------------------------
+  # TOE 변경 감지
+  # --------------------------------------------------------------------------
+  toe-diff:
+    name: TOE Change Detection
+    runs-on: ubuntu-22.04
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect TOE changes
+        run: |
+          echo "=== TOE (products/sso-server, products/sso-agent) 변경 파일 ==="
+          git diff --name-only origin/main...HEAD -- \
+            products/sso-server/src/ \
+            products/sso-agent/src/ | sort
+
+          TOE_CHANGES=$(git diff --name-only origin/main...HEAD -- \
+            products/sso-server/src/ \
+            products/sso-agent/src/ | wc -l)
+
+          echo ""
+          echo "TOE 변경 파일 수: $TOE_CHANGES"
+
+          if [ "$TOE_CHANGES" -gt 0 ]; then
+            echo "::warning::TOE 범위 내 $TOE_CHANGES 개 파일이 변경되었습니다. CC 영향 검토가 필요합니다."
+          fi

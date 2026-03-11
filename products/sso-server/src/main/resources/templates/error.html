@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuthFusion SSO - Error</title>
+    <link rel="stylesheet" th:href="@{/css/login.css}">
+</head>
+<body>
+<div class="login-container">
+    <div class="login-header">
+        <h1>AuthFusion SSO</h1>
+        <p>Error</p>
+    </div>
+
+    <div class="error-message" th:text="${errorMessage}">An unexpected error occurred</div>
+
+    <a href="/login" class="btn-login" style="display:block;text-align:center;text-decoration:none">
+        Back to Login
+    </a>
+</div>
+</body>
+</html>

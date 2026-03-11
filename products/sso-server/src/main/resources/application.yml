@@ -1,0 +1,127 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: authfusion-sso-server
+  datasource:
+    url: jdbc:postgresql://localhost:5432/authfusion_sso
+    username: authfusion
+    password: authfusion-secret
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      idle-timeout: 30000
+      connection-timeout: 20000
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
+    open-in-view: false
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    default-property-inclusion: non_null
+  thymeleaf:
+    cache: true
+
+# AuthFusion SSO Configuration
+authfusion:
+  sso:
+    issuer: http://localhost:8080
+    cc:
+      extended-features-enabled: true   # 기본=확장모드 (CC 모드에서 false)
+    jwt:
+      master-secret: ${AUTHFUSION_KEY_MASTER_SECRET:authfusion-default-master-key-change-me-in-production}
+      access-token-validity: 300        # 5 minutes
+      refresh-token-validity: 86400     # 24 hours
+      id-token-validity: 3600           # 1 hour
+      authorization-code-validity: 600  # 10 minutes
+      key-algorithm: RS256
+      key-size: 2048
+      key-rotation-days: 90
+    session:
+      timeout: 3600                     # 1 hour
+      max-sessions-per-user: 5
+    security:
+      max-login-attempts: 5
+      lockout-duration: 1800            # 30 minutes
+      password-min-length: 8
+      password-max-length: 128
+      password-history-count: 5
+      rate-limit:
+        requests-per-second: 10
+        burst-size: 20
+    ldap:
+      enabled: false                    # 기본 비활성화
+      url: ldap://localhost:389
+      base-dn: dc=authfusion,dc=io
+      bind-dn: cn=sso-service,dc=authfusion,dc=io
+      bind-password: ${AUTHFUSION_LDAP_BIND_PASSWORD:}
+      user-search-base: ou=users
+      user-search-filter: "(uid={0})"
+      connect-timeout: 5000
+      read-timeout: 10000
+      attribute-mapping:
+        username: uid
+        email: mail
+        first-name: givenName
+        last-name: sn
+    mfa:
+      totp:
+        enabled: true
+        issuer: AuthFusion SSO
+        digits: 6
+        period: 30
+        algorithm: HmacSHA1
+        time-step-window: 1
+        secret-length: 20
+      recovery-codes:
+        count: 10
+        length: 8
+      pending-session:
+        timeout: 300              # 5분
+    cors:
+      allowed-origins: http://localhost:3000,http://localhost:5173
+      allowed-methods: GET,POST,PUT,DELETE,OPTIONS
+      max-age: 3600
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+# OpenAPI
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  show-actuator: false
+
+# Logging
+logging:
+  level:
+    root: INFO
+    com.authfusion.sso: DEBUG
+    org.springframework.security: INFO
+    org.hibernate.SQL: WARN
+  file:
+    name: logs/sso-server.log
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

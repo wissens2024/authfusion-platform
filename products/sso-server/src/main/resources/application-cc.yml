@@ -1,0 +1,57 @@
+# ============================================================================
+# AuthFusion SSO Server - CC(Common Criteria) 하드닝 프로파일
+# 활성화: --spring.profiles.active=cc
+# ============================================================================
+
+authfusion:
+  sso:
+    cc:
+      mode: minimum
+      extended-features-enabled: false
+    jwt:
+      access-token-validity: 300        # 5분
+      refresh-token-validity: 43200     # 12시간 (하드닝)
+      id-token-validity: 3600           # 1시간
+      key-rotation-days: 90
+      key-size: 2048
+    mfa:
+      pending-session:
+        timeout: 180                    # 3분 (하드닝)
+    session:
+      timeout: 1800                     # 30분 (하드닝)
+      max-sessions-per-user: 3
+    security:
+      max-login-attempts: 3             # 하드닝 (5 → 3)
+      lockout-duration: 3600            # 1시간 (하드닝)
+      password-min-length: 12           # 하드닝 (8 → 12)
+      password-max-length: 128
+      password-history-count: 10        # 하드닝 (5 → 10)
+      rate-limit:
+        requests-per-second: 5          # 하드닝 (10 → 5)
+        burst-size: 10                  # 하드닝 (20 → 10)
+
+# Swagger/OpenAPI 비활성화
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+# Actuator 최소 노출
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      show-details: never
+
+# 로깅 하드닝
+logging:
+  level:
+    root: WARN
+    com.authfusion.sso: INFO
+    com.authfusion.sso.audit: DEBUG
+    org.springframework.security: WARN
+    org.hibernate.SQL: WARN

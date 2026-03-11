@@ -1,0 +1,139 @@
+# ============================================================================
+# AuthFusion Platform - Docker Compose
+# SSO Server + Admin Console + HashiCorp Vault
+# ============================================================================
+
+services:
+  # --------------------------------------------------------------------------
+  # PostgreSQL 16 - Primary Database
+  # --------------------------------------------------------------------------
+  postgres:
+    image: postgres:16
+    container_name: authfusion-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: authfusion
+      POSTGRES_PASSWORD: authfusion-secret
+      POSTGRES_DB: authfusion_sso
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - authfusion-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authfusion -d authfusion_sso"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # --------------------------------------------------------------------------
+  # HashiCorp Vault - Secrets Management
+  # --------------------------------------------------------------------------
+  vault:
+    image: hashicorp/vault:1.17
+    container_name: authfusion-vault
+    restart: unless-stopped
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: authfusion-dev-token
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+      VAULT_ADDR: http://0.0.0.0:8200
+      VAULT_API_ADDR: http://vault:8200
+    cap_add:
+      - IPC_LOCK
+    volumes:
+      - vault-data:/vault/data
+      - vault-logs:/vault/logs
+    networks:
+      - authfusion-net
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # --------------------------------------------------------------------------
+  # SSO Server - AuthFusion SSO Server (OIDC Provider)
+  # --------------------------------------------------------------------------
+  sso-server:
+    build:
+      context: ./products/sso-server
+      dockerfile: Dockerfile
+    container_name: authfusion-sso-server
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      # Spring profiles
+      SPRING_PROFILES_ACTIVE: docker
+      # Database
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/authfusion_sso
+      SPRING_DATASOURCE_USERNAME: authfusion
+      SPRING_DATASOURCE_PASSWORD: authfusion-secret
+      # SSO Configuration
+      AUTHFUSION_SSO_ISSUER: http://localhost:8080
+      # Server
+      SERVER_PORT: 8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - authfusion-net
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+
+  # --------------------------------------------------------------------------
+  # Admin Console - Next.js Frontend
+  # --------------------------------------------------------------------------
+  admin-console:
+    build:
+      context: ./products/admin-console
+      dockerfile: Dockerfile
+    container_name: authfusion-admin-console
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      # API endpoints
+      NEXT_PUBLIC_SSO_SERVER_URL: http://localhost:8080
+      # Internal service URLs (server-side)
+      SSO_SERVER_INTERNAL_URL: http://sso-server:8080
+    depends_on:
+      - sso-server
+    networks:
+      - authfusion-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+# ----------------------------------------------------------------------------
+# Networks
+# ----------------------------------------------------------------------------
+networks:
+  authfusion-net:
+    name: authfusion-net
+    driver: bridge
+
+# ----------------------------------------------------------------------------
+# Volumes
+# ----------------------------------------------------------------------------
+volumes:
+  postgres-data:
+    name: authfusion-postgres-data
+  vault-data:
+    name: authfusion-vault-data
+  vault-logs:
+    name: authfusion-vault-logs

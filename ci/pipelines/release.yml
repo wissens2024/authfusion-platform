@@ -1,0 +1,75 @@
+# ============================================================================
+# AuthFusion Platform - Release Pipeline
+# TOE 릴리즈: 빌드 → SBOM → 서명 → 아티팩트 게시
+# ============================================================================
+name: Release
+
+on:
+  push:
+    tags:
+      - 'sso-v*'       # TOE 릴리즈 (예: sso-v1.2.3)
+      - 'keyhub-v*'     # 플랫폼 릴리즈 (예: keyhub-v0.9.1)
+
+env:
+  JAVA_VERSION: '17'
+
+jobs:
+  # --------------------------------------------------------------------------
+  # TOE Release (SSO Server + SSO Agent)
+  # --------------------------------------------------------------------------
+  toe-release:
+    name: TOE Release
+    if: startsWith(github.ref, 'refs/tags/sso-v')
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+
+      # CC 빌드 (재현빌드 + SBOM)
+      - name: Build SSO Server (CC Profile)
+        working-directory: products/sso-server
+        run: mvn clean package -Pcc -Dgpg.skip=true -DskipTests
+
+      - name: Build SSO Agent
+        working-directory: products/sso-agent
+        run: mvn clean package -DskipTests
+
+      # SBOM 생성
+      - name: Generate SBOM
+        run: bash release/sbom/generate-sbom.sh
+
+      # SHA-256 체크섬
+      - name: Generate Checksums
+        run: |
+          mkdir -p release/artifacts/checksums
+          sha256sum products/sso-server/target/sso-server-*.jar > release/artifacts/checksums/sso-server.sha256
+          sha256sum products/sso-agent/target/sso-agent-*.jar > release/artifacts/checksums/sso-agent.sha256
+
+      # GPG 서명 (시크릿 설정 시)
+      - name: Sign Artifacts
+        if: env.GPG_PRIVATE_KEY != ''
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          bash release/signing/sign-artifacts.sh
+
+      # GitHub Release 생성
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            products/sso-server/target/sso-server-*.jar
+            products/sso-agent/target/sso-agent-*.jar
+            release/artifacts/*-bom.json
+            release/artifacts/checksums/*
+          generate_release_notes: true
+          draft: true

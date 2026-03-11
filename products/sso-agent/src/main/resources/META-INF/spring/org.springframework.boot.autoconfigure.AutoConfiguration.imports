@@ -1,0 +1,2 @@
+com.authfusion.agent.config.SsoAgentAutoConfiguration
+com.authfusion.agent.config.SsoAgentFilterRegistrar

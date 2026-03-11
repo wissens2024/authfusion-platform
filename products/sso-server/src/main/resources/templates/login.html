@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuthFusion SSO - Login</title>
+    <link rel="stylesheet" th:href="@{/css/login.css}">
+</head>
+<body>
+<div class="login-container">
+    <div class="login-header">
+        <h1>AuthFusion SSO</h1>
+        <p>Sign in to continue</p>
+    </div>
+
+    <div th:if="${error}" class="error-message" th:text="${error}"></div>
+
+    <form method="post" th:action="@{/login}">
+        <div class="form-group">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required autofocus
+                   placeholder="Enter your username">
+        </div>
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required
+                   placeholder="Enter your password">
+        </div>
+
+        <input type="hidden" name="client_id" th:value="${clientId}">
+        <input type="hidden" name="redirect_uri" th:value="${redirectUri}">
+        <input type="hidden" name="scope" th:value="${scope}">
+        <input type="hidden" name="response_type" th:value="${responseType}">
+        <input type="hidden" name="state" th:value="${state}">
+        <input type="hidden" name="nonce" th:value="${nonce}">
+        <input type="hidden" name="code_challenge" th:value="${codeChallenge}">
+        <input type="hidden" name="code_challenge_method" th:value="${codeChallengeMethod}">
+
+        <button type="submit" class="btn-login">Sign In</button>
+    </form>
+</div>
+</body>
+</html>

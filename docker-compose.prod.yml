@@ -1,0 +1,29 @@
+# ============================================================================
+# AuthFusion Platform - 운영 환경 (192.168.0.115 통합 DB 사용)
+# 사용: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+# PostgreSQL은 외부 서버(192.168.0.115) 사용, 로컬 postgres 서비스 비활성
+# ============================================================================
+
+services:
+  # 로컬 PostgreSQL 비활성화 (외부 DB 사용)
+  postgres:
+    deploy:
+      replicas: 0
+
+  sso-server:
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      # 192.168.0.115 통합 DB (sso 스키마)
+      SPRING_DATASOURCE_URL: jdbc:postgresql://192.168.0.115:5432/authfusion_db?currentSchema=sso
+      SPRING_DATASOURCE_USERNAME: sso_user
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-AuthFusion2026!}
+      # 도메인
+      AUTHFUSION_SSO_ISSUER: https://sso.aines.kr
+      AUTHFUSION_KEY_MASTER_SECRET: ${AUTHFUSION_KEY_MASTER_SECRET:-authfusion-prod-master-key}
+      AUTHFUSION_SSO_CORS_ALLOWED_ORIGINS: https://sso.aines.kr,http://192.168.0.115:3000
+    depends_on: []  # postgres 의존성 제거
+
+  admin-console:
+    environment:
+      NEXT_PUBLIC_SSO_SERVER_URL: https://sso.aines.kr
+      SSO_SERVER_URL: http://sso-server:8080

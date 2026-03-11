@@ -1,0 +1,183 @@
+# ============================================================================
+# AuthFusion Platform - .gitignore
+# Comprehensive ignore rules for Java (Maven), Node.js (Next.js), and IDEs
+# ============================================================================
+
+# ----------------------------------------------------------------------------
+# Java / Maven
+# ----------------------------------------------------------------------------
+target/
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+*.rar
+*.zip
+*.tar.gz
+*.log
+hs_err_pid*
+replay_pid*
+
+# Maven
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+release.properties
+dependency-reduced-pom.xml
+buildNumber.properties
+.flattened-pom.xml
+
+# Gradle (in case of future use)
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# ----------------------------------------------------------------------------
+# Node.js / Next.js
+# ----------------------------------------------------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# Next.js
+.next/
+out/
+.vercel
+
+# Nuxt.js (in case of future use)
+.nuxt/
+dist/
+
+# Production build
+build/
+
+# Package lock (keep one, ignore others if using npm)
+# Uncomment the one you do NOT use:
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# ----------------------------------------------------------------------------
+# Environment & Secrets
+# ----------------------------------------------------------------------------
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env*.local
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+*.truststore
+secrets/
+vault-data/
+
+# ----------------------------------------------------------------------------
+# IDE - IntelliJ IDEA / JetBrains
+# ----------------------------------------------------------------------------
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+.idea_modules/
+atlassian-ide-plugin.xml
+com_crashlytics_export_strings.xml
+crashlytics.properties
+crashlytics-build.properties
+fabric.properties
+
+# ----------------------------------------------------------------------------
+# IDE - Visual Studio Code
+# ----------------------------------------------------------------------------
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# ----------------------------------------------------------------------------
+# IDE - Eclipse
+# ----------------------------------------------------------------------------
+.classpath
+.project
+.settings/
+bin/
+tmp/
+*.tmp
+*.swp
+*.bak
+
+# ----------------------------------------------------------------------------
+# OS Generated Files
+# ----------------------------------------------------------------------------
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Icon?
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.Trash-*
+.nfs*
+
+# ----------------------------------------------------------------------------
+# Docker
+# ----------------------------------------------------------------------------
+docker-compose.override.yml
+.docker/
+
+# ----------------------------------------------------------------------------
+# Testing & Coverage
+# ----------------------------------------------------------------------------
+coverage/
+*.lcov
+.nyc_output/
+test-results/
+surefire-reports/
+failsafe-reports/
+jacoco.exec
+jacoco-it.exec
+
+# ----------------------------------------------------------------------------
+# Logs & Databases
+# ----------------------------------------------------------------------------
+logs/
+*.log
+*.sqlite
+*.db
+
+# ----------------------------------------------------------------------------
+# Miscellaneous
+# ----------------------------------------------------------------------------
+*.bak
+*.orig
+*.patch
+*.diff
+.cache/
+.temp/
+.tmp/

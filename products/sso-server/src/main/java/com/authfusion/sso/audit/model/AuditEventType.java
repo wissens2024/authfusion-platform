@@ -1,0 +1,14 @@
+package com.authfusion.sso.audit.model;
+
+public enum AuditEventType {
+    AUTHENTICATION,
+    AUTHORIZATION,
+    USER_MANAGEMENT,
+    CLIENT_MANAGEMENT,
+    ROLE_MANAGEMENT,
+    SESSION_MANAGEMENT,
+    TOKEN_OPERATION,
+    MFA_OPERATION,
+    LDAP_OPERATION,
+    SYSTEM
+}
