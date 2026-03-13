@@ -67,7 +67,7 @@ services:
     container_name: authfusion-sso-server
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8081:8081"
     environment:
       # Spring profiles
       SPRING_PROFILES_ACTIVE: docker
@@ -76,16 +76,16 @@ services:
       SPRING_DATASOURCE_USERNAME: authfusion
       SPRING_DATASOURCE_PASSWORD: authfusion-secret
       # SSO Configuration
-      AUTHFUSION_SSO_ISSUER: http://localhost:8080
+      AUTHFUSION_SSO_ISSUER: http://localhost:8081
       # Server
-      SERVER_PORT: 8080
+      SERVER_PORT: 8081
     depends_on:
       postgres:
         condition: service_healthy
     networks:
       - authfusion-net
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8081/actuator/health || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -101,19 +101,19 @@ services:
     container_name: authfusion-admin-console
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3001:3001"
     environment:
       NODE_ENV: production
       # API endpoints
-      NEXT_PUBLIC_SSO_SERVER_URL: http://localhost:8080
+      NEXT_PUBLIC_SSO_SERVER_URL: http://localhost:8081
       # Internal service URLs (server-side)
-      SSO_SERVER_INTERNAL_URL: http://sso-server:8080
+      SSO_SERVER_INTERNAL_URL: http://sso-server:8081
     depends_on:
       - sso-server
     networks:
       - authfusion-net
     healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:3000/api/health || exit 1"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:3001/api/health || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 5

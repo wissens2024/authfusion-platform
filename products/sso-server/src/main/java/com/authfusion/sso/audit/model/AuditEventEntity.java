@@ -35,6 +35,9 @@ public class AuditEventEntity {
     @Column(name = "user_id", length = 256)
     private String userId;
 
+    @Column(name = "username", length = 255)
+    private String username;
+
     @Column(name = "client_id", length = 256)
     private String clientId;
 

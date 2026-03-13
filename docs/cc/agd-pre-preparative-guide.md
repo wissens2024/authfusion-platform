@@ -160,7 +160,7 @@ Flyway를 통해 데이터베이스 스키마가 자동 마이그레이션된다
 ```bash
 # 마이그레이션 상태 확인
 curl -H "Authorization: Bearer <admin-token>" \
-  "https://sso.example.com/actuator/flyway"
+  "https://sso.aines.kr/actuator/flyway"
 ```
 
 ---
@@ -317,7 +317,7 @@ authfusion:
 
 ### 6.2 초기 로그인 및 비밀번호 변경
 
-1. Admin Console(`https://sso.example.com:3000`)에 접속
+1. Admin Console(`https://sso.aines.kr:3000`)에 접속
 2. 초기 관리자 자격증명으로 로그인
 3. 비밀번호 변경 화면에서 CC 모드 비밀번호 정책에 부합하는 새 비밀번호 설정
 4. 비밀번호 변경 완료 확인
@@ -335,7 +335,7 @@ curl -X POST -H "Authorization: Bearer <admin-token>" \
     "roles": ["ADMIN"],
     "forcePasswordChange": true
   }' \
-  "https://sso.example.com/api/v1/users"
+  "https://sso.aines.kr/api/v1/users"
 ```
 
 ---
@@ -346,16 +346,16 @@ curl -X POST -H "Authorization: Bearer <admin-token>" \
 
 ```bash
 # 1. 서비스 상태 확인
-curl -k https://localhost:8080/actuator/health
+curl -k https://localhost:8081/actuator/health
 
 # 2. OIDC Discovery 확인
-curl -k https://localhost:8080/.well-known/openid-configuration
+curl -k https://localhost:8081/.well-known/openid-configuration
 
 # 3. JWKS 엔드포인트 확인
-curl -k https://localhost:8080/.well-known/jwks.json
+curl -k https://localhost:8081/.well-known/jwks.json
 
 # 4. CC 모드 활성화 확인
-curl -k https://localhost:8080/actuator/health | jq '.components.ccMode'
+curl -k https://localhost:8081/actuator/health | jq '.components.ccMode'
 ```
 
 ### 7.2 보안 기능 확인 체크리스트

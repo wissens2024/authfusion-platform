@@ -126,7 +126,7 @@ Access Token 만료 시 새 토큰을 발급하기 위한 그랜트 타입이다
     "kid": "<key-id>"
   },
   "payload": {
-    "iss": "https://sso.example.com",
+    "iss": "https://sso.aines.kr",
     "sub": "<user-uuid>",
     "aud": ["<client-id>"],
     "exp": 1709530800,
@@ -152,7 +152,7 @@ Access Token 만료 시 새 토큰을 발급하기 위한 그랜트 타입이다
     "kid": "<key-id>"
   },
   "payload": {
-    "iss": "https://sso.example.com",
+    "iss": "https://sso.aines.kr",
     "sub": "<user-uuid>",
     "aud": ["<client-id>"],
     "exp": 1709534100,
@@ -180,7 +180,7 @@ Access Token 만료 시 새 토큰을 발급하기 위한 그랜트 타입이다
     "kid": "<key-id>"
   },
   "payload": {
-    "iss": "https://sso.example.com",
+    "iss": "https://sso.aines.kr",
     "sub": "<user-uuid>",
     "exp": 1709616900,
     "iat": 1709530500,
@@ -448,12 +448,12 @@ RSASSAVerifier(publicKey) 검증
 
 ```json
 {
-  "issuer": "https://sso.example.com",
-  "authorization_endpoint": "https://sso.example.com/oauth2/authorize",
-  "token_endpoint": "https://sso.example.com/oauth2/token",
-  "userinfo_endpoint": "https://sso.example.com/oauth2/userinfo",
-  "jwks_uri": "https://sso.example.com/.well-known/jwks.json",
-  "revocation_endpoint": "https://sso.example.com/oauth2/revoke",
+  "issuer": "https://sso.aines.kr",
+  "authorization_endpoint": "https://sso.aines.kr/oauth2/authorize",
+  "token_endpoint": "https://sso.aines.kr/oauth2/token",
+  "userinfo_endpoint": "https://sso.aines.kr/oauth2/userinfo",
+  "jwks_uri": "https://sso.aines.kr/.well-known/jwks.json",
+  "revocation_endpoint": "https://sso.aines.kr/oauth2/revoke",
   "response_types_supported": ["code"],
   "grant_types_supported": ["authorization_code", "refresh_token"],
   "subject_types_supported": ["public"],

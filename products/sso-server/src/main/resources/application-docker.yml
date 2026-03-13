@@ -6,4 +6,4 @@ spring:
 
 authfusion:
   sso:
-    issuer: ${AUTHFUSION_SSO_ISSUER:http://localhost:8080}
+    issuer: ${AUTHFUSION_SSO_ISSUER:http://localhost:8081}

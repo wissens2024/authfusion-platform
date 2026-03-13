@@ -15,7 +15,7 @@ spring:
 
 authfusion:
   sso:
-    issuer: http://localhost:8080
+    issuer: http://localhost:8081
     kms:
       enabled: false
 

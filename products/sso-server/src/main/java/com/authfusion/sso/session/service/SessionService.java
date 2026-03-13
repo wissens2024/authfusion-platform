@@ -78,8 +78,9 @@ public class SessionService {
     }
 
     public List<SessionInfo> listAllSessions() {
-        return sessionStore.findByUserId(null) != null ?
-                List.of() : List.of();
+        return sessionStore.findAll().stream()
+                .map(SessionInfo::fromSession)
+                .collect(Collectors.toList());
     }
 
     public void revokeSession(String sessionId) {

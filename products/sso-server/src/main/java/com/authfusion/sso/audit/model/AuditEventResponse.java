@@ -16,6 +16,7 @@ public class AuditEventResponse {
     private String eventType;
     private String action;
     private String userId;
+    private String username;
     private String clientId;
     private String ipAddress;
     private String userAgent;
@@ -32,6 +33,7 @@ public class AuditEventResponse {
                 .eventType(entity.getEventType())
                 .action(entity.getAction())
                 .userId(entity.getUserId())
+                .username(entity.getUsername())
                 .clientId(entity.getClientId())
                 .ipAddress(entity.getIpAddress())
                 .userAgent(entity.getUserAgent())

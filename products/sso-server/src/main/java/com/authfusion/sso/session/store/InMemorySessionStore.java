@@ -61,4 +61,12 @@ public class InMemorySessionStore implements SessionStore {
                 .filter(s -> s.getStatus() == SessionStatus.ACTIVE)
                 .count();
     }
+
+    @Override
+    public List<SsoSession> findAll() {
+        Instant now = Instant.now();
+        return sessions.values().stream()
+                .filter(s -> s.getExpiresAt() == null || s.getExpiresAt().isAfter(now))
+                .collect(Collectors.toList());
+    }
 }

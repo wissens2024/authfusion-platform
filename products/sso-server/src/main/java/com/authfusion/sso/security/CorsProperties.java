@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
 @Setter
 public class CorsProperties {
 
-    private String allowedOrigins = "http://localhost:3000";
+    private String allowedOrigins = "http://localhost:3001";
     private String allowedMethods = "GET,POST,PUT,DELETE,OPTIONS";
     private long maxAge = 3600;
 }

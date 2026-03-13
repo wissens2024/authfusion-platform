@@ -295,7 +295,7 @@ journalctl -u authfusion-sso -f --since "1 minute ago"
 
 # 헬스체크 (최대 90초 대기)
 for i in $(seq 1 18); do
-  if curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
+  if curl -sf http://localhost:8081/actuator/health > /dev/null 2>&1; then
     echo "헬스체크 성공!"
     break
   fi
@@ -304,16 +304,16 @@ for i in $(seq 1 18); do
 done
 
 # 상세 헬스체크
-curl -s http://localhost:8080/actuator/health | python3 -m json.tool
+curl -s http://localhost:8081/actuator/health | python3 -m json.tool
 
 # Flyway 마이그레이션 확인
-curl -s http://localhost:8080/actuator/flyway | python3 -m json.tool
+curl -s http://localhost:8081/actuator/flyway | python3 -m json.tool
 
 # OIDC Discovery 엔드포인트 검증
-curl -s http://localhost:8080/.well-known/openid-configuration | python3 -m json.tool
+curl -s http://localhost:8081/.well-known/openid-configuration | python3 -m json.tool
 
 # JWKS 엔드포인트 검증
-curl -s http://localhost:8080/.well-known/jwks.json | python3 -m json.tool
+curl -s http://localhost:8081/.well-known/jwks.json | python3 -m json.tool
 ```
 
 ### 6.2 Docker Compose 배포
@@ -360,11 +360,11 @@ docker compose logs -f sso-server
 
 # 헬스체크
 docker compose exec sso-server \
-  wget -qO- http://localhost:8080/actuator/health
+  wget -qO- http://localhost:8081/actuator/health
 
 # OIDC Discovery 검증
 docker compose exec sso-server \
-  wget -qO- http://localhost:8080/.well-known/openid-configuration
+  wget -qO- http://localhost:8081/.well-known/openid-configuration
 ```
 
 #### 단계 4: CC 모드 Docker Compose 업데이트
@@ -380,10 +380,10 @@ docker compose \
 
 # CC 모드 설정 확인
 docker compose exec sso-server \
-  wget -qO- http://localhost:8080/actuator/health
+  wget -qO- http://localhost:8081/actuator/health
 
 # Swagger UI 비활성화 확인 (404 반환 정상)
-curl -sf http://localhost:8080/swagger-ui.html || echo "Swagger UI 비활성화 정상"
+curl -sf http://localhost:8081/swagger-ui.html || echo "Swagger UI 비활성화 정상"
 ```
 
 ### 6.3 SSO Agent 업그레이드
@@ -453,7 +453,7 @@ db/migration/
 ```bash
 # 방법 1: Flyway Maven 플러그인
 mvn flyway:info \
-  -Dflyway.url=jdbc:postgresql://localhost:5432/authfusion_sso \
+  -Dflyway.url=jdbc:postgresql://localhost:5432/authfusion_db?currentSchema=sso \
   -Dflyway.user=authfusion \
   -Dflyway.password=authfusion-secret
 
@@ -465,7 +465,7 @@ psql -U authfusion -d authfusion_sso -c "
 "
 
 # 방법 3: Actuator 엔드포인트 (actuator/flyway 노출 시)
-curl -s http://localhost:8080/actuator/flyway | python3 -m json.tool
+curl -s http://localhost:8081/actuator/flyway | python3 -m json.tool
 ```
 
 ### 7.4 마이그레이션 사전 검증
@@ -479,7 +479,7 @@ pg_restore -U authfusion -d authfusion_sso_test \
 
 # 새 마이그레이션 적용 (dry-run 목적)
 mvn flyway:migrate \
-  -Dflyway.url=jdbc:postgresql://localhost:5432/authfusion_sso_test \
+  -Dflyway.url=jdbc:postgresql://localhost:5432/authfusion_db_test?currentSchema=sso \
   -Dflyway.user=authfusion \
   -Dflyway.password=authfusion-secret
 
@@ -542,10 +542,10 @@ DELETE FROM flyway_schema_history WHERE version = '8';
 
 | 조건 | 확인 방법 |
 |------|----------|
-| 헬스체크 실패 (5분 이상) | `curl http://localhost:8080/actuator/health` |
+| 헬스체크 실패 (5분 이상) | `curl http://localhost:8081/actuator/health` |
 | Flyway 마이그레이션 실패 | 시작 로그에 `FlywayException` 출력 |
-| OIDC Discovery 응답 오류 | `curl http://localhost:8080/.well-known/openid-configuration` |
-| JWKS 엔드포인트 오류 | `curl http://localhost:8080/.well-known/jwks.json` |
+| OIDC Discovery 응답 오류 | `curl http://localhost:8081/.well-known/openid-configuration` |
+| JWKS 엔드포인트 오류 | `curl http://localhost:8081/.well-known/jwks.json` |
 | JWT 서명/검증 오류 | SSO Agent 또는 클라이언트에서 `401 Unauthorized` 다수 발생 |
 | 인증 플로우 중단 | 로그인 시도 시 500 오류 반환 |
 | 감사 로그 기록 실패 | `sso_audit_events` 테이블에 신규 레코드 미생성 |
@@ -581,8 +581,8 @@ pg_restore -U authfusion -d authfusion_sso \
 systemctl start authfusion-sso
 
 # ── 단계 6: 롤백 후 검증 ──
-curl -sf http://localhost:8080/actuator/health && echo "정상"
-curl -sf http://localhost:8080/.well-known/openid-configuration | head -5
+curl -sf http://localhost:8081/actuator/health && echo "정상"
+curl -sf http://localhost:8081/.well-known/openid-configuration | head -5
 ```
 
 ### 8.3 Docker Compose 롤백
@@ -621,7 +621,7 @@ docker compose \
 
 # ── 단계 6: 롤백 후 검증 ──
 docker compose exec sso-server \
-  wget -qO- http://localhost:8080/actuator/health
+  wget -qO- http://localhost:8081/actuator/health
 docker compose logs --tail=50 sso-server
 ```
 
@@ -650,38 +650,38 @@ curl -s http://legacy-app:8081/health
 
 ```bash
 # 1. 헬스체크
-curl -s http://localhost:8080/actuator/health | python3 -m json.tool
+curl -s http://localhost:8081/actuator/health | python3 -m json.tool
 
 # 2. 버전 확인 (info 엔드포인트)
-curl -s http://localhost:8080/actuator/info | python3 -m json.tool
+curl -s http://localhost:8081/actuator/info | python3 -m json.tool
 
 # 3. OIDC Discovery 검증
-curl -s http://localhost:8080/.well-known/openid-configuration | python3 -m json.tool
+curl -s http://localhost:8081/.well-known/openid-configuration | python3 -m json.tool
 
 # 4. JWKS 검증 (키가 정상적으로 로드되는지)
-curl -s http://localhost:8080/.well-known/jwks.json | python3 -m json.tool
+curl -s http://localhost:8081/.well-known/jwks.json | python3 -m json.tool
 ```
 
 ### 9.2 인증 플로우 검증
 
 ```bash
 # 1. 로그인 테스트
-curl -X POST http://localhost:8080/api/v1/auth/login \
+curl -X POST http://localhost:8081/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin-password"}' \
   -w "\nHTTP Status: %{http_code}\n"
 
 # 2. 토큰 발급 테스트 (Client Credentials)
-curl -X POST http://localhost:8080/oauth2/token \
+curl -X POST http://localhost:8081/oauth2/token \
   -H "Content-Type: application/x-www-form-urlencoded" \
   -d "grant_type=client_credentials&client_id=test-client&client_secret=test-secret" \
   -w "\nHTTP Status: %{http_code}\n"
 
 # 3. 사용자 정보 조회 (Bearer Token)
-TOKEN=$(curl -s -X POST http://localhost:8080/oauth2/token \
+TOKEN=$(curl -s -X POST http://localhost:8081/oauth2/token \
   -d "grant_type=client_credentials&client_id=test-client&client_secret=test-secret" \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
-curl -s http://localhost:8080/oauth2/userinfo \
+curl -s http://localhost:8081/oauth2/userinfo \
   -H "Authorization: Bearer ${TOKEN}" \
   -w "\nHTTP Status: %{http_code}\n"
 ```
@@ -691,18 +691,18 @@ curl -s http://localhost:8080/oauth2/userinfo \
 ```bash
 # 1. 확장 기능 비활성화 확인
 # 아래 URL은 모두 403 또는 404를 반환해야 한다
-curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/swagger-ui.html
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/swagger-ui.html
 # 기대값: 404
 
 # 2. 확장 컨트롤러 비활성화 확인
 # 확장 API 호출 시 403/404 응답
 curl -s -o /dev/null -w "%{http_code}" \
   -H "Authorization: Bearer ${ADMIN_TOKEN}" \
-  http://localhost:8080/api/v1/clients
+  http://localhost:8081/api/v1/clients
 # CC 모드에서 기대값: 403
 
 # 3. Actuator 최소 노출 확인
-curl -s http://localhost:8080/actuator | python3 -m json.tool
+curl -s http://localhost:8081/actuator | python3 -m json.tool
 # health만 노출되어야 함
 
 # 4. 감사 로그 기록 확인
@@ -834,7 +834,7 @@ export AUTHFUSION_KEY_MASTER_SECRET=<새-마스터-시크릿>
 systemctl start authfusion-sso
 
 # 6. JWKS 응답 검증 (기존 키가 정상 로드되는지)
-curl -s http://localhost:8080/.well-known/jwks.json | python3 -m json.tool
+curl -s http://localhost:8081/.well-known/jwks.json | python3 -m json.tool
 ```
 
 ### 11.2 Major 버전 업그레이드 (v1.x → v2.x)
@@ -864,7 +864,7 @@ psql -U authfusion -d authfusion_sso -c "
 # 2. 실패한 마이그레이션 수동 정리
 #    (Flyway repair는 실패한 마이그레이션 레코드를 제거)
 mvn flyway:repair \
-  -Dflyway.url=jdbc:postgresql://localhost:5432/authfusion_sso \
+  -Dflyway.url=jdbc:postgresql://localhost:5432/authfusion_db?currentSchema=sso \
   -Dflyway.user=authfusion \
   -Dflyway.password=authfusion-secret
 
@@ -992,7 +992,7 @@ systemctl start authfusion-sso
 # 8. 헬스체크
 echo "[7/7] 헬스체크 (최대 90초 대기)..."
 for i in $(seq 1 18); do
-  if curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
+  if curl -sf http://localhost:8081/actuator/health > /dev/null 2>&1; then
     echo "업그레이드 성공! v${VERSION}"
     exit 0
   fi

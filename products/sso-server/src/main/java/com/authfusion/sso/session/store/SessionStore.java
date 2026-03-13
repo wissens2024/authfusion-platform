@@ -21,4 +21,6 @@ public interface SessionStore {
     void deleteByUserId(UUID userId);
 
     long countByUserId(UUID userId);
+
+    List<SsoSession> findAll();
 }

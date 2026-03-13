@@ -25,15 +25,17 @@ export default function DashboardPage() {
           healthApi.check(),
         ]);
 
+        const eventsPage = events.status === 'fulfilled' ? events.value.data : null;
+
         setStats({
           users: users.status === 'fulfilled' ? (users.value.data as unknown[]).length : 0,
           clients: clients.status === 'fulfilled' ? (clients.value.data as unknown[]).length : 0,
           sessions: sessions.status === 'fulfilled' ? (sessions.value.data as unknown[]).length : 0,
-          events: events.status === 'fulfilled' ? (events.value.data as unknown[]).length : 0,
+          events: eventsPage ? (eventsPage.totalElements ?? eventsPage.content?.length ?? 0) : 0,
         });
 
-        if (events.status === 'fulfilled') {
-          setRecentEvents(Array.isArray(events.value.data) ? events.value.data.slice(0, 10) : []);
+        if (eventsPage?.content) {
+          setRecentEvents(eventsPage.content.slice(0, 10));
         }
         if (healthRes.status === 'fulfilled') {
           setHealth(healthRes.value.data);
@@ -91,11 +93,11 @@ export default function DashboardPage() {
                 <div key={event.id} className="flex items-center justify-between text-sm">
                   <div className="flex items-center gap-2">
                     <span className={`w-2 h-2 rounded-full ${event.success ? 'bg-green-500' : 'bg-red-500'}`} />
-                    <span className="text-gray-700">{event.eventType}</span>
+                    <span className="text-gray-700">{event.action || event.eventType}</span>
                     {event.username && <span className="text-gray-400">({event.username})</span>}
                   </div>
                   <span className="text-xs text-gray-400">
-                    {new Date(event.createdAt).toLocaleString('ko-KR')}
+                    {new Date(event.timestamp).toLocaleString('ko-KR')}
                   </span>
                 </div>
               ))}

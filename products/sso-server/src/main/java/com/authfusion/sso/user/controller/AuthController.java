@@ -1,5 +1,7 @@
 package com.authfusion.sso.user.controller;
 
+import com.authfusion.sso.audit.service.AuditService;
+import com.authfusion.sso.config.GlobalExceptionHandler.AuthenticationException;
 import com.authfusion.sso.jwt.JwtTokenProvider;
 import com.authfusion.sso.jwt.TokenClaims;
 import com.authfusion.sso.mfa.service.MfaSessionService;
@@ -13,6 +15,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import com.authfusion.sso.cc.ToeScope;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
@@ -21,16 +24,12 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
-/**
- * REST controller for authentication operations.
- */
 @ToeScope(value = "사용자 인증 API", sfr = {"FIA_UAU.1", "FIA_UID.1", "FIA_AFL.1"})
 @Slf4j
 @RestController
 @RequestMapping("/api/v1/auth")
-@Tag(name = "Authentication", description = "User authentication operations (login/logout)")
+@Tag(name = "Authentication")
 public class AuthController {
 
     private final UserService userService;
@@ -38,109 +37,99 @@ public class AuthController {
     private final MfaSessionService mfaSessionService;
     private final JwtTokenProvider jwtTokenProvider;
     private final RoleService roleService;
+    private final AuditService auditService;
 
     @Autowired
     public AuthController(UserService userService, TotpService totpService,
                           MfaSessionService mfaSessionService, JwtTokenProvider jwtTokenProvider,
-                          RoleService roleService) {
+                          RoleService roleService, AuditService auditService) {
         this.userService = userService;
         this.totpService = totpService;
         this.mfaSessionService = mfaSessionService;
         this.jwtTokenProvider = jwtTokenProvider;
         this.roleService = roleService;
+        this.auditService = auditService;
     }
 
     @PostMapping("/login")
-    @Operation(
-            summary = "Authenticate user",
-            description = "Authenticates a user with username and password. Returns a session ID and user information on success. " +
-                    "Tracks failed login attempts and locks the account after exceeding the maximum allowed attempts.",
+    @Operation(summary = "Authenticate user",
             responses = {
                     @ApiResponse(responseCode = "200", description = "Authentication successful"),
                     @ApiResponse(responseCode = "401", description = "Invalid credentials or account locked")
-            }
-    )
+            })
     public ResponseEntity<LoginResponse> login(
             @Valid @RequestBody LoginRequest request,
-            HttpSession session) {
-        log.info("POST /api/v1/auth/login - Authenticating user '{}'", request.getUsername());
+            HttpSession session,
+            HttpServletRequest httpRequest) {
+        log.info("POST /api/v1/auth/login - user='{}'", request.getUsername());
+        String ip = getClientIp(httpRequest);
 
-        UserEntity authenticatedUser = userService.authenticate(
-                request.getUsername(), request.getPassword());
+        try {
+            UserEntity user = userService.authenticate(request.getUsername(), request.getPassword());
 
-        // Check if MFA is required
-        if (totpService.isTotpEnabled(authenticatedUser.getId())) {
-            MfaPendingSessionEntity pending = mfaSessionService.createPendingSession(
-                    authenticatedUser.getId(), null, null,
-                    null, null, null, null, null, null, null, null);
+            if (totpService.isTotpEnabled(user.getId())) {
+                MfaPendingSessionEntity pending = mfaSessionService.createPendingSession(
+                        user.getId(), null, null, null, null, null, null, null, null, null, null);
+                auditService.logAuthentication("LOGIN_MFA_REQUIRED",
+                        user.getId().toString(), user.getUsername(), ip, true, null);
+                return ResponseEntity.ok(LoginResponse.builder()
+                        .mfaRequired(true).mfaToken(pending.getMfaToken()).build());
+            }
 
-            LoginResponse response = LoginResponse.builder()
-                    .mfaRequired(true)
-                    .mfaToken(pending.getMfaToken())
-                    .build();
+            auditService.logAuthentication("LOGIN_SUCCESS",
+                    user.getId().toString(), user.getUsername(), ip, true, null);
+            log.info("User '{}' authenticated successfully", request.getUsername());
+            return ResponseEntity.ok(buildLoginResponse(user, session));
 
-            log.info("MFA required for user '{}', mfaToken issued", request.getUsername());
-            return ResponseEntity.ok(response);
+        } catch (AuthenticationException e) {
+            auditService.logAuthentication("LOGIN_FAILED",
+                    request.getUsername(), request.getUsername(), ip, false, e.getMessage());
+            throw e;
         }
-
-        // Generate JWT access token
-        LoginResponse response = buildLoginResponse(authenticatedUser, session);
-
-        log.info("User '{}' authenticated successfully", request.getUsername());
-        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/mfa/verify")
-    @Operation(
-            summary = "Verify MFA code",
-            description = "Verifies the TOTP code for MFA-enabled users after initial password authentication.",
+    @Operation(summary = "Verify MFA code",
             responses = {
                     @ApiResponse(responseCode = "200", description = "MFA verification successful"),
-                    @ApiResponse(responseCode = "401", description = "Invalid MFA code or token")
-            }
-    )
+                    @ApiResponse(responseCode = "401", description = "Invalid MFA code")
+            })
     public ResponseEntity<LoginResponse> verifyMfa(
             @RequestParam String mfaToken,
             @Valid @RequestBody TotpVerifyRequest verifyRequest,
-            HttpSession session) {
+            HttpSession session,
+            HttpServletRequest httpRequest) {
         MfaPendingSessionEntity pending = mfaSessionService.validateAndGet(mfaToken);
+        String ip = getClientIp(httpRequest);
 
         boolean valid = totpService.verifyTotp(pending.getUserId(), verifyRequest.getCode());
         if (!valid) {
-            throw new com.authfusion.sso.config.GlobalExceptionHandler.AuthenticationException("Invalid TOTP code");
+            auditService.logAuthentication("MFA_FAILED",
+                    pending.getUserId().toString(), null, ip, false, "Invalid TOTP code");
+            throw new AuthenticationException("Invalid TOTP code");
         }
 
-        // MFA passed - generate JWT
         UserEntity user = userService.getUserEntity(pending.getUserId());
         mfaSessionService.consumePendingSession(mfaToken);
-
-        LoginResponse response = buildLoginResponse(user, session);
+        auditService.logAuthentication("MFA_SUCCESS",
+                user.getId().toString(), user.getUsername(), ip, true, null);
 
         log.info("MFA verification successful for user '{}'", user.getUsername());
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(buildLoginResponse(user, session));
     }
 
     @PostMapping("/logout")
-    @Operation(
-            summary = "Logout user",
-            description = "Invalidates the current session, effectively logging the user out.",
-            responses = {
-                    @ApiResponse(responseCode = "204", description = "Logout successful")
-            }
-    )
+    @Operation(summary = "Logout user",
+            responses = {@ApiResponse(responseCode = "204", description = "Logout successful")})
     public ResponseEntity<Void> logout(HttpSession session) {
-        log.info("POST /api/v1/auth/logout - Invalidating session '{}'", session.getId());
         session.invalidate();
         return ResponseEntity.noContent().build();
     }
 
     private LoginResponse buildLoginResponse(UserEntity user, HttpSession session) {
-        // Get user roles
         List<String> roleNames = roleService.getUserRoles(user.getId()).stream()
-                .map(r -> r.getName())
-                .toList();
+                .map(r -> r.getName()).toList();
 
-        // Build JWT claims
         TokenClaims claims = TokenClaims.builder()
                 .sub(user.getId().toString())
                 .preferredUsername(user.getUsername())
@@ -154,8 +143,6 @@ public class AuthController {
                 .build();
 
         String accessToken = jwtTokenProvider.generateAccessToken(claims);
-
-        // Store in session
         session.setAttribute("userId", user.getId());
         session.setAttribute("username", user.getUsername());
 
@@ -166,5 +153,11 @@ public class AuthController {
                 .sessionId(session.getId())
                 .user(UserResponse.fromEntity(user))
                 .build();
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String xff = request.getHeader("X-Forwarded-For");
+        if (xff != null && !xff.isBlank()) return xff.split(",")[0].trim();
+        return request.getRemoteAddr();
     }
 }

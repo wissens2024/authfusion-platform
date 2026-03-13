@@ -155,10 +155,10 @@ docker compose logs -f sso-server
 
 | 서비스 | URL | 설명 |
 |--------|-----|------|
-| SSO Server (Swagger) | http://localhost:8080/swagger-ui.html | REST API 문서 |
-| SSO Server 로그인 | http://localhost:8080/login | SSO 로그인 페이지 |
-| OIDC Discovery | http://localhost:8080/.well-known/openid-configuration | OIDC 메타데이터 |
-| Admin Console | http://localhost:3000 | 관리자 콘솔 |
+| SSO Server (Swagger) | http://localhost:8081/swagger-ui.html | REST API 문서 |
+| SSO Server 로그인 | http://localhost:8081/login | SSO 로그인 페이지 |
+| OIDC Discovery | http://localhost:8081/.well-known/openid-configuration | OIDC 메타데이터 |
+| Admin Console | http://localhost:3001 | 관리자 콘솔 |
 | Vault UI | http://localhost:8200 | Token: authfusion-dev-token |
 
 ### 5. 서비스 종료

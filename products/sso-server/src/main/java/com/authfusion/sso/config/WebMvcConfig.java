@@ -10,7 +10,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
 
-    @Value("${authfusion.sso.cors.allowed-origins:http://localhost:3000}")
+    @Value("${authfusion.sso.cors.allowed-origins:http://localhost:3001}")
     private String allowedOrigins;
 
     @Value("${authfusion.sso.cors.allowed-methods:GET,POST,PUT,DELETE,OPTIONS}")

@@ -119,7 +119,7 @@ export default function ClientsPage() {
           <div>
             <label className="block text-sm font-medium mb-1">Redirect URIs (줄바꿈 구분)</label>
             <textarea value={form.redirectUris} onChange={(e) => setForm({ ...form, redirectUris: e.target.value })}
-              className="input-field" rows={3} placeholder="http://localhost:3000/callback" />
+              className="input-field" rows={3} placeholder="http://localhost:3001/callback" />
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">Scopes (공백 구분)</label>

@@ -123,4 +123,4 @@ authfusion-platform/
 - `GET /api/v1/audit/events` - 감사 로그 조회
 - `POST/GET /api/v1/mfa/*` - MFA 관리
 - `GET /api/v1/extensions` - 확장 모듈 (Extended 모드)
-- Swagger UI: http://localhost:8080/swagger-ui.html
+- Swagger UI: http://localhost:8081/swagger-ui.html

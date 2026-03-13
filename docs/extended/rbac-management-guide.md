@@ -83,7 +83,7 @@ curl -X POST \
       "READ_STATISTICS"
     ]
   }' \
-  "https://sso.example.com/api/v1/roles"
+  "https://sso.aines.kr/api/v1/roles"
 ```
 
 ### 3.2 역할 수정
@@ -104,7 +104,7 @@ curl -X PUT \
       "MANAGE_KEYS"
     ]
   }' \
-  "https://sso.example.com/api/v1/roles/{roleId}"
+  "https://sso.aines.kr/api/v1/roles/{roleId}"
 ```
 
 ### 3.3 역할 삭제
@@ -112,7 +112,7 @@ curl -X PUT \
 ```bash
 curl -X DELETE \
   -H "Authorization: Bearer <admin-token>" \
-  "https://sso.example.com/api/v1/roles/{roleId}"
+  "https://sso.aines.kr/api/v1/roles/{roleId}"
 ```
 
 > **주의**: 사용자에게 할당된 역할은 삭제할 수 없다. 먼저 모든 사용자에서 해당 역할을 해제해야 한다.
@@ -121,7 +121,7 @@ curl -X DELETE \
 
 ```bash
 curl -H "Authorization: Bearer <admin-token>" \
-  "https://sso.example.com/api/v1/roles"
+  "https://sso.aines.kr/api/v1/roles"
 ```
 
 ---
@@ -138,7 +138,7 @@ curl -X POST \
   -d '{
     "roleIds": ["role-uuid-operator"]
   }' \
-  "https://sso.example.com/api/v1/users/{userId}/roles"
+  "https://sso.aines.kr/api/v1/users/{userId}/roles"
 ```
 
 ### 4.2 역할 해제
@@ -147,7 +147,7 @@ curl -X POST \
 # 사용자에서 역할 해제
 curl -X DELETE \
   -H "Authorization: Bearer <admin-token>" \
-  "https://sso.example.com/api/v1/users/{userId}/roles/{roleId}"
+  "https://sso.aines.kr/api/v1/users/{userId}/roles/{roleId}"
 ```
 
 ### 4.3 할당 규칙
@@ -166,7 +166,7 @@ curl -X DELETE \
 # 사용자의 모든 세션 종료 (역할 즉시 적용)
 curl -X DELETE \
   -H "Authorization: Bearer <admin-token>" \
-  "https://sso.example.com/api/v1/sessions?username={username}"
+  "https://sso.aines.kr/api/v1/sessions?username={username}"
 ```
 
 ---
@@ -190,7 +190,7 @@ curl -X DELETE \
 ```json
 {
   "sub": "user-uuid",
-  "iss": "https://sso.example.com",
+  "iss": "https://sso.aines.kr",
   "aud": "client-id",
   "exp": 1709470200,
   "iat": 1709469300,
@@ -255,7 +255,7 @@ curl -X POST \
       "READ_STATISTICS"
     ]
   }' \
-  "https://sso.example.com/api/v1/roles"
+  "https://sso.aines.kr/api/v1/roles"
 
 # 헬프데스크 역할 생성
 curl -X POST \
@@ -270,7 +270,7 @@ curl -X POST \
       "WRITE_SELF"
     ]
   }' \
-  "https://sso.example.com/api/v1/roles"
+  "https://sso.aines.kr/api/v1/roles"
 ```
 
 ---
@@ -291,7 +291,7 @@ curl -X POST \
 
 ```bash
 curl -H "Authorization: Bearer <admin-token>" \
-  "https://sso.example.com/api/v1/audit/events?eventType=ROLE_ASSIGNED"
+  "https://sso.aines.kr/api/v1/audit/events?eventType=ROLE_ASSIGNED"
 ```
 
 ---

@@ -1,13 +1,13 @@
 server:
-  port: 8080
+  port: 8081
 
 spring:
   application:
     name: authfusion-sso-server
   datasource:
-    url: jdbc:postgresql://localhost:5432/authfusion_sso
-    username: authfusion
-    password: authfusion-secret
+    url: jdbc:postgresql://192.168.0.115:5432/authfusion_db?currentSchema=sso
+    username: sso_user
+    password: ${DB_PASSWORD:AuthFusion2026!}
     hikari:
       maximum-pool-size: 20
       minimum-idle: 5
@@ -19,6 +19,7 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        default_schema: sso
         jdbc:
           time_zone: UTC
     open-in-view: false
@@ -26,6 +27,8 @@ spring:
     enabled: true
     locations: classpath:db/migration
     baseline-on-migrate: true
+    schemas: sso
+    default-schema: sso
   jackson:
     serialization:
       write-dates-as-timestamps: false
@@ -36,7 +39,7 @@ spring:
 # AuthFusion SSO Configuration
 authfusion:
   sso:
-    issuer: http://localhost:8080
+    issuer: http://localhost:8081
     cc:
       extended-features-enabled: true   # 기본=확장모드 (CC 모드에서 false)
     jwt:
@@ -90,7 +93,7 @@ authfusion:
       pending-session:
         timeout: 300              # 5분
     cors:
-      allowed-origins: http://localhost:3000,http://localhost:5173
+      allowed-origins: http://localhost:3001,http://localhost:5173
       allowed-methods: GET,POST,PUT,DELETE,OPTIONS
       max-age: 3600
 

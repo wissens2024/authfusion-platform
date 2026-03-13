@@ -105,8 +105,8 @@ Admin Console은 SSO Server의 인증 API를 사용하여 관리자를 인증한
 
 | 변수 | 설명 | 예시 |
 |------|------|------|
-| `NEXT_PUBLIC_SSO_SERVER_URL` | 클라이언트 측 API URL | `http://localhost:8080` |
-| `SSO_SERVER_INTERNAL_URL` | 서버 측(SSR) 내부 URL | `http://sso-server:8080` |
+| `NEXT_PUBLIC_SSO_SERVER_URL` | 클라이언트 측 API URL | `http://localhost:8081` |
+| `SSO_SERVER_INTERNAL_URL` | 서버 측(SSR) 내부 URL | `http://sso-server:8081` |
 
 ### 2.4 RBAC 기반 접근 제어
 

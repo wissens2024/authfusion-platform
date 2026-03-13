@@ -2,11 +2,11 @@ import axios from 'axios';
 import type {
   User, UserCreateRequest, Client, ClientCreateRequest,
   Role, RoleCreateRequest, Session, AuditEvent, AuditStatistics,
-  HealthStatus, LoginRequest, LoginResponse, MfaVerifyRequest,
+  HealthStatus, LoginRequest, LoginResponse, MfaVerifyRequest, PageResponse,
 } from './types';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_SSO_SERVER_URL || 'http://localhost:8080',
+  baseURL: process.env.NEXT_PUBLIC_SSO_SERVER_URL || 'http://localhost:8081',
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -77,10 +77,10 @@ export const sessionApi = {
 
 // Audit
 export const auditApi = {
-  list: (params?: { eventType?: string; username?: string; from?: string; to?: string; page?: number; size?: number }) =>
-    api.get<AuditEvent[]>('/api/v1/audit/events', { params }),
-  statistics: (params?: { from?: string; to?: string }) =>
-    api.get<AuditStatistics>('/api/v1/audit/statistics', { params }),
+  list: (params?: { eventType?: string; action?: string; username?: string; from?: string; to?: string; page?: number; size?: number }) =>
+    api.get<PageResponse<AuditEvent>>('/api/v1/audit/events', { params }),
+  statistics: () =>
+    api.get<AuditStatistics>('/api/v1/audit/statistics'),
 };
 
 // Health

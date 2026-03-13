@@ -46,7 +46,7 @@ public class LoginPageController {
     @Value("${authfusion.sso.jwt.authorization-code-validity:600}")
     private long codeValidity;
 
-    @GetMapping("/login")
+    @GetMapping({"/sso/login", "/login"})
     public String loginPage(
             @RequestParam(value = "client_id", required = false) String clientId,
             @RequestParam(value = "redirect_uri", required = false) String redirectUri,
@@ -70,7 +70,7 @@ public class LoginPageController {
         return "login";
     }
 
-    @PostMapping("/login")
+    @PostMapping({"/sso/login", "/login"})
     public String login(
             @RequestParam("username") String username,
             @RequestParam("password") String password,
@@ -97,7 +97,7 @@ public class LoginPageController {
         try {
             UserEntity user = userService.authenticate(username, password);
             bruteForceService.recordSuccessfulAttempt(username);
-            auditService.logAuthentication("LOGIN", user.getId().toString(), ip, true, null);
+            auditService.logAuthentication("LOGIN_SUCCESS", user.getId().toString(), user.getUsername(), ip, true, null);
 
             // Check if TOTP MFA is enabled
             if (totpService.isTotpEnabled(user.getId())) {
@@ -105,21 +105,21 @@ public class LoginPageController {
                         user.getId(), ip, httpRequest.getHeader("User-Agent"),
                         clientId, redirectUri, scope, responseType, state, nonce,
                         codeChallenge, codeChallengeMethod);
-                return "redirect:/login/mfa?mfa_token=" + encode(pending.getMfaToken());
+                return "redirect:/sso/mfa?mfa_token=" + encode(pending.getMfaToken());
             }
 
             return completeLogin(user, ip, httpRequest, httpResponse,
                     clientId, redirectUri, scope, codeChallenge, codeChallengeMethod, nonce, state);
         } catch (Exception e) {
             bruteForceService.recordFailedAttempt(username);
-            auditService.logAuthentication("LOGIN", username, ip, false, e.getMessage());
+            auditService.logAuthentication("LOGIN_FAILED", username, username, ip, false, e.getMessage());
             model.addAttribute("error", "Invalid username or password");
             addOAuthParams(model, clientId, redirectUri, scope, responseType, state, nonce, codeChallenge, codeChallengeMethod);
             return "login";
         }
     }
 
-    @GetMapping("/login/mfa")
+    @GetMapping({"/sso/mfa", "/login/mfa"})
     public String mfaPage(@RequestParam("mfa_token") String mfaToken, Model model) {
         try {
             mfaSessionService.validateAndGet(mfaToken);
@@ -131,7 +131,7 @@ public class LoginPageController {
         return "mfa-verify";
     }
 
-    @PostMapping("/login/mfa")
+    @PostMapping({"/sso/mfa", "/login/mfa"})
     public String verifyMfa(
             @RequestParam("mfa_token") String mfaToken,
             @RequestParam("code") String code,
@@ -148,11 +148,11 @@ public class LoginPageController {
             if (!valid) {
                 model.addAttribute("error", "Invalid verification code");
                 model.addAttribute("mfaToken", mfaToken);
-                auditService.logAuthentication("MFA_VERIFY", pending.getUserId().toString(), ip, false, "Invalid TOTP code");
+                auditService.logAuthentication("MFA_FAILED", pending.getUserId().toString(), null, ip, false, "Invalid TOTP code");
                 return "mfa-verify";
             }
 
-            auditService.logAuthentication("MFA_VERIFY", pending.getUserId().toString(), ip, true, null);
+            auditService.logAuthentication("MFA_SUCCESS", pending.getUserId().toString(), null, ip, true, null);
             UserEntity user = userService.getUserEntity(pending.getUserId());
 
             String result = completeLogin(user, ip, httpRequest, httpResponse,

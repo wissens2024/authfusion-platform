@@ -73,22 +73,22 @@ mvn clean package -Pcc
 
 ```bash
 # 관리 API 차단 확인
-curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/v1/clients
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/api/v1/clients
 # 기대 결과: 403
 
 # OIDC Discovery 정상 확인
-curl -s http://localhost:8080/.well-known/openid-configuration | python3 -m json.tool
+curl -s http://localhost:8081/.well-known/openid-configuration | python3 -m json.tool
 
 # Swagger UI 차단 확인
-curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/swagger-ui.html
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/swagger-ui.html
 # 기대 결과: 403
 
 # Actuator info 차단 확인
-curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/actuator/info
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/actuator/info
 # 기대 결과: 404
 
 # Actuator health 최소 정보 확인
-curl -s http://localhost:8080/actuator/health
+curl -s http://localhost:8081/actuator/health
 # 기대 결과: {"status":"UP"} (상세 없음)
 ```
 
@@ -190,7 +190,7 @@ ssl_min_protocol_version = 'TLSv1.2'
 # SSO Server JDBC URL에 SSL 파라미터 추가
 spring:
   datasource:
-    url: jdbc:postgresql://db:5432/authfusion_sso?ssl=true&sslmode=verify-full&sslrootcert=/app/certs/ca.crt
+    url: jdbc:postgresql://db:5432/authfusion_db?currentSchema=sso&ssl=true&sslmode=verify-full&sslrootcert=/app/certs/ca.crt
 ```
 
 ### 4.3 사용자 권한 최소화
@@ -277,7 +277,7 @@ gunzip -c /backup/authfusion_20260301.sql.gz | psql -U authfusion_admin -d authf
 ```nginx
 server {
     listen 443 ssl http2;
-    server_name sso.example.com;
+    server_name sso.aines.kr;
 
     # TLS 설정
     ssl_protocols TLSv1.2 TLSv1.3;
@@ -326,7 +326,7 @@ server {
 # HTTP → HTTPS 리다이렉트
 server {
     listen 80;
-    server_name sso.example.com;
+    server_name sso.aines.kr;
     return 301 https://$host$request_uri;
 }
 ```
@@ -358,7 +358,7 @@ CC 평가 구성에서는 관리자 계정에 TOTP MFA를 필수로 활성화할
 
 ```bash
 # 관리자 계정 MFA 설정 (API 호출)
-curl -X POST http://localhost:8080/api/v1/mfa/setup \
+curl -X POST http://localhost:8081/api/v1/mfa/setup \
   -H "Authorization: Bearer <admin-jwt>" \
   -H "Content-Type: application/json"
 # → QR 코드 + 비밀키 + 복구 코드 수신

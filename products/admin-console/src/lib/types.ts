@@ -67,21 +67,28 @@ export interface Session {
 }
 
 export interface AuditEvent {
-  id: number;
+  id: string;
   eventType: string;
+  action: string;
+  userId?: string;
   username?: string;
   clientId?: string;
   ipAddress?: string;
+  userAgent?: string;
+  resourceType?: string;
+  resourceId?: string;
   success: boolean;
+  errorMessage?: string;
   details?: string;
-  createdAt: string;
+  timestamp: string;
 }
 
 export interface AuditStatistics {
   totalEvents: number;
-  successCount: number;
-  failureCount: number;
-  eventTypeCounts: Record<string, number>;
+  successfulEvents: number;
+  failedEvents: number;
+  eventsByType: Record<string, number>;
+  eventsByAction: Record<string, number>;
 }
 
 export interface HealthStatus {

@@ -67,7 +67,7 @@ export AUTHFUSION_LOCKOUT_DURATION=1800     # 30분 (초)
 CC 모드 활성화 상태를 확인하는 방법:
 
 ```bash
-curl -s https://sso.example.com/actuator/health | jq '.components.ccMode'
+curl -s https://sso.aines.kr/actuator/health | jq '.components.ccMode'
 ```
 
 응답 예시:
@@ -177,19 +177,19 @@ CC 모드에서는 다음 모든 이벤트가 기록된다:
 ```bash
 # 전체 감사 이벤트 조회 (페이징)
 curl -H "Authorization: Bearer <admin-token>" \
-  "https://sso.example.com/api/v1/audit/events?page=0&size=50"
+  "https://sso.aines.kr/api/v1/audit/events?page=0&size=50"
 
 # 이벤트 유형별 조회
 curl -H "Authorization: Bearer <admin-token>" \
-  "https://sso.example.com/api/v1/audit/events?eventType=AUTH_LOGIN_FAILURE"
+  "https://sso.aines.kr/api/v1/audit/events?eventType=AUTH_LOGIN_FAILURE"
 
 # 날짜 범위 조회
 curl -H "Authorization: Bearer <admin-token>" \
-  "https://sso.example.com/api/v1/audit/events?from=2026-03-01&to=2026-03-03"
+  "https://sso.aines.kr/api/v1/audit/events?from=2026-03-01&to=2026-03-03"
 
 # 사용자별 조회
 curl -H "Authorization: Bearer <admin-token>" \
-  "https://sso.example.com/api/v1/audit/events?username=admin"
+  "https://sso.aines.kr/api/v1/audit/events?username=admin"
 ```
 
 ### 4.3 감사 로그 보존
@@ -238,7 +238,7 @@ curl -H "Authorization: Bearer <admin-token>" \
 ```bash
 # 수동 키 로테이션 (관리 API)
 curl -X POST -H "Authorization: Bearer <admin-token>" \
-  "https://sso.example.com/api/v1/keys/rotate"
+  "https://sso.aines.kr/api/v1/keys/rotate"
 ```
 
 #### 5.1.3 키 로테이션 주기
@@ -274,11 +274,11 @@ curl -X POST -H "Authorization: Bearer <admin-token>" \
 ```bash
 # 활성 세션 목록 조회
 curl -H "Authorization: Bearer <admin-token>" \
-  "https://sso.example.com/api/v1/sessions?status=ACTIVE"
+  "https://sso.aines.kr/api/v1/sessions?status=ACTIVE"
 
 # 특정 사용자의 세션 조회
 curl -H "Authorization: Bearer <admin-token>" \
-  "https://sso.example.com/api/v1/sessions?username=user01"
+  "https://sso.aines.kr/api/v1/sessions?username=user01"
 ```
 
 ### 6.3 세션 강제 종료
@@ -288,11 +288,11 @@ curl -H "Authorization: Bearer <admin-token>" \
 ```bash
 # 특정 세션 강제 종료
 curl -X DELETE -H "Authorization: Bearer <admin-token>" \
-  "https://sso.example.com/api/v1/sessions/{sessionId}"
+  "https://sso.aines.kr/api/v1/sessions/{sessionId}"
 
 # 특정 사용자의 전체 세션 종료
 curl -X DELETE -H "Authorization: Bearer <admin-token>" \
-  "https://sso.example.com/api/v1/sessions?username=user01"
+  "https://sso.aines.kr/api/v1/sessions?username=user01"
 ```
 
 ### 6.4 세션 관련 감사

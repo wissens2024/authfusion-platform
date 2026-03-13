@@ -31,7 +31,7 @@ public class SecurityConfig {
     private final RateLimitFilter rateLimitFilter;
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    @Value("${authfusion.sso.cors.allowed-origins:http://localhost:3000}")
+    @Value("${authfusion.sso.cors.allowed-origins:http://localhost:3001}")
     private String allowedOrigins;
 
     @Value("${authfusion.sso.cors.allowed-methods:GET,POST,PUT,DELETE,OPTIONS}")
@@ -63,10 +63,12 @@ public class SecurityConfig {
                             "/oauth2/logout"
                     ).permitAll();
 
-                    // Login page
+                    // Login page (both /login and /sso/login for Nginx reverse proxy)
                     auth.requestMatchers(
                             "/login",
                             "/login/**",
+                            "/sso/login",
+                            "/sso/mfa",
                             "/error"
                     ).permitAll();
 

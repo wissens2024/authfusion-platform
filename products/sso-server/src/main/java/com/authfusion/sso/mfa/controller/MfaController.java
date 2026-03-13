@@ -37,7 +37,7 @@ public class MfaController {
             HttpServletRequest request) {
         UserEntity user = getUserOrThrow(userId);
         TotpSetupResponse response = totpService.setupTotp(userId, user.getUsername());
-        auditService.logAuthentication("MFA_TOTP_SETUP", userId.toString(), getClientIp(request), true, null);
+        auditService.logAuthentication("MFA_TOTP_SETUP", userId.toString(), user.getUsername(), getClientIp(request), true, null);
         log.info("TOTP setup initiated for userId={}", userId);
         return ResponseEntity.ok(response);
     }
@@ -48,8 +48,9 @@ public class MfaController {
             @RequestParam UUID userId,
             @Valid @RequestBody TotpSetupRequest setupRequest,
             HttpServletRequest request) {
+        UserEntity user = getUserOrThrow(userId);
         totpService.verifySetup(userId, setupRequest.getCode());
-        auditService.logAuthentication("MFA_TOTP_VERIFIED", userId.toString(), getClientIp(request), true, null);
+        auditService.logAuthentication("MFA_TOTP_VERIFIED", userId.toString(), user.getUsername(), getClientIp(request), true, null);
         log.info("TOTP setup verified for userId={}", userId);
         return ResponseEntity.ok().build();
     }
@@ -59,8 +60,9 @@ public class MfaController {
     public ResponseEntity<Void> disableTotp(
             @RequestParam UUID userId,
             HttpServletRequest request) {
+        UserEntity user = getUserOrThrow(userId);
         totpService.disableTotp(userId);
-        auditService.logAuthentication("MFA_TOTP_DISABLED", userId.toString(), getClientIp(request), true, null);
+        auditService.logAuthentication("MFA_TOTP_DISABLED", userId.toString(), user.getUsername(), getClientIp(request), true, null);
         log.info("TOTP disabled for userId={}", userId);
         return ResponseEntity.noContent().build();
     }
@@ -83,8 +85,9 @@ public class MfaController {
     public ResponseEntity<List<String>> regenerateRecoveryCodes(
             @RequestParam UUID userId,
             HttpServletRequest request) {
+        UserEntity user = getUserOrThrow(userId);
         List<String> codes = totpService.regenerateRecoveryCodes(userId);
-        auditService.logAuthentication("MFA_RECOVERY_REGENERATED", userId.toString(), getClientIp(request), true, null);
+        auditService.logAuthentication("MFA_RECOVERY_REGENERATED", userId.toString(), user.getUsername(), getClientIp(request), true, null);
         return ResponseEntity.ok(codes);
     }
 

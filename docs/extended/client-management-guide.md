@@ -51,7 +51,7 @@
 
 ### 3.1 Admin Console을 통한 등록
 
-1. Admin Console(`https://sso.example.com:3000`)에 관리자로 로그인
+1. Admin Console(`https://sso.aines.kr`)에 관리자로 로그인
 2. 좌측 메뉴에서 **클라이언트 관리** 클릭
 3. **새 클라이언트 등록** 버튼 클릭
 4. 필수 항목 입력:
@@ -81,7 +81,7 @@ curl -X POST \
     "accessTokenTtl": 900,
     "refreshTokenTtl": 3600
   }' \
-  "https://sso.example.com/api/v1/clients"
+  "https://sso.aines.kr/api/v1/clients"
 ```
 
 ### 3.3 등록 시 주의사항
@@ -110,7 +110,7 @@ curl -X POST \
 허용:
   https://app.example.com/callback
   https://app.example.com/auth/redirect
-  http://localhost:3000/callback  (개발 환경만)
+  http://localhost:3001/callback  (개발 환경만)
 
 불허:
   https://*.example.com/callback  (와일드카드)
@@ -174,7 +174,7 @@ curl -X PUT \
     ],
     "allowedScopes": ["openid", "profile"]
   }' \
-  "https://sso.example.com/api/v1/clients/{clientId}"
+  "https://sso.aines.kr/api/v1/clients/{clientId}"
 ```
 
 ---
@@ -193,7 +193,7 @@ curl -X PUT \
 # 클라이언트 삭제
 curl -X DELETE \
   -H "Authorization: Bearer <admin-token>" \
-  "https://sso.example.com/api/v1/clients/{clientId}"
+  "https://sso.aines.kr/api/v1/clients/{clientId}"
 ```
 
 ### 6.3 감사 기록
@@ -214,7 +214,7 @@ curl -X DELETE \
 ```bash
 curl -X POST \
   -H "Authorization: Bearer <admin-token>" \
-  "https://sso.example.com/api/v1/clients/{clientId}/regenerate-secret"
+  "https://sso.aines.kr/api/v1/clients/{clientId}/regenerate-secret"
 ```
 
 > **주의**: 이전 시크릿은 즉시 무효화된다. 해당 클라이언트를 사용하는 모든 애플리케이션의 설정을 업데이트해야 한다.
@@ -236,7 +236,7 @@ curl -X POST \
 # application.yml
 authfusion:
   agent:
-    server-url: https://sso.example.com
+    server-url: https://sso.aines.kr
     client-id: your-client-id
     client-secret: ${CLIENT_SECRET}
     redirect-uri: https://your-app.com/callback
@@ -248,7 +248,7 @@ authfusion:
 ```javascript
 // OIDC 설정 예시
 const config = {
-  authority: 'https://sso.example.com',
+  authority: 'https://sso.aines.kr',
   client_id: 'spa-client-id',
   redirect_uri: 'https://spa.example.com/callback',
   response_type: 'code',

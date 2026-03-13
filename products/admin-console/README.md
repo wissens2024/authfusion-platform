@@ -63,13 +63,13 @@ cp .env.local.example .env.local
 
 ```bash
 # SSO Server URL (브라우저에서 접근하는 URL)
-NEXT_PUBLIC_SSO_SERVER_URL=http://localhost:8080
+NEXT_PUBLIC_SSO_SERVER_URL=http://localhost:8081
 
-# SSO Server URL (서버사이드 - Docker 내부 시 http://sso-server:8080)
-SSO_SERVER_URL=http://localhost:8080
+# SSO Server URL (서버사이드 - Docker 내부 시 http://sso-server:8081)
+SSO_SERVER_URL=http://localhost:8081
 
 # NextAuth 설정
-NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_URL=http://localhost:3001
 NEXTAUTH_SECRET=your-nextauth-secret-generate-with-openssl-rand-base64-32
 
 # OIDC 클라이언트 (SSO Server에 등록된 값)
@@ -91,7 +91,7 @@ npm install
 npm run dev
 ```
 
-브라우저에서 http://localhost:3000 접속.
+브라우저에서 http://localhost:3001 접속.
 
 ### 1.5 개발 명령어
 
@@ -127,14 +127,17 @@ docker build -t authfusion/admin-console:dev .
 # 실행
 docker run -d \
   --name authfusion-admin-console \
-  -p 3000:3000 \
-  -e NEXT_PUBLIC_SSO_SERVER_URL=http://localhost:8080 \
-  -e SSO_SERVER_URL=http://host.docker.internal:8080 \
+  -p 3001:3000 \
+  -e NEXT_PUBLIC_SSO_SERVER_URL=http://localhost:8081 \
+  -e SSO_SERVER_URL=http://host.docker.internal:8081 \
   -e SSO_CLIENT_ID=admin-console \
   -e SSO_CLIENT_SECRET=your-secret \
-  -e NEXTAUTH_URL=http://localhost:3000 \
+  -e NEXTAUTH_URL=http://localhost:3001 \
   -e NEXTAUTH_SECRET=your-nextauth-secret \
   authfusion/admin-console:dev
+```
+
+> **참고**: Docker 단독 실행 시 `-p 3001:3000`으로 호스트 포트 3001에 매핑합니다.
 ```
 
 ### 2.2 Docker Compose (전체 스택)
@@ -159,30 +162,38 @@ docker compose logs -f admin-console
 사용자 (브라우저)
     │
     ▼
-┌─────────────────────────────┐
-│  Nginx (Reverse Proxy)       │
-│  admin.example.com:443 (TLS) │
-└──────────┬──────────────────┘
-           │
-┌──────────▼──────────────────┐
-│  Admin Console (port 3000)   │ ──→ SSO Server (sso.example.com)
-│  Next.js Standalone          │     API 호출 + OIDC 인증
-└──────────────────────────────┘
+┌──────────────────────────────────────────┐
+│  Nginx (Reverse Proxy)                    │
+│  sso.aines.kr:443 (TLS)                  │
+│  경로 기반 라우팅 (단일 도메인)               │
+└──────────┬───────────────┬───────────────┘
+           │               │
+  /api/*,/oauth2/*,    그 외 (/, /login,
+  /.well-known/*,       /_next/*, 등)
+  /sso/login, 등           │
+           │               │
+┌──────────▼──────┐ ┌──────▼──────────────┐
+│  SSO Server     │ │  Admin Console      │
+│  (port 8081)    │ │  (port 3001)        │
+│  Spring Boot    │ │  Next.js Standalone │
+└─────────────────┘ └─────────────────────┘
 ```
 
 ### 3.2 운영 환경 변수
 
+> **참고**: 별도의 Admin 도메인 없이 `sso.aines.kr` 단일 도메인에서 경로 기반 라우팅으로 운영합니다.
+
 ```bash
 # .env.production (또는 환경 변수로 직접 설정)
 
-# 공개 URL (브라우저에서 SSO Server에 접근하는 URL)
-NEXT_PUBLIC_SSO_SERVER_URL=https://sso.example.com
+# 공개 URL (브라우저에서 SSO Server에 접근하는 URL - 단일 도메인)
+NEXT_PUBLIC_SSO_SERVER_URL=https://sso.aines.kr
 
-# 내부 URL (서버사이드 API 호출용 - 내부 네트워크)
-SSO_SERVER_URL=http://sso-server.internal:8080
+# 내부 URL (서버사이드 API 호출용 - Docker 내부 네트워크)
+SSO_SERVER_URL=http://sso-server:8081
 
-# NextAuth
-NEXTAUTH_URL=https://admin.example.com
+# NextAuth (단일 도메인 - Admin Console도 sso.aines.kr에서 서비스)
+NEXTAUTH_URL=https://sso.aines.kr
 NEXTAUTH_SECRET=<openssl rand -base64 32로 생성>
 
 # OIDC 클라이언트
@@ -205,40 +216,36 @@ docker build -t authfusion/admin-console:1.0.0 .
 docker run -d \
   --name authfusion-admin-console \
   --restart unless-stopped \
-  -p 3000:3000 \
-  -e NEXT_PUBLIC_SSO_SERVER_URL=https://sso.example.com \
-  -e SSO_SERVER_URL=http://sso-server.internal:8080 \
+  -p 3001:3000 \
+  -e NEXT_PUBLIC_SSO_SERVER_URL=https://sso.aines.kr \
+  -e SSO_SERVER_URL=http://sso-server:8081 \
   -e SSO_CLIENT_ID=admin-console \
   -e SSO_CLIENT_SECRET=${SSO_CLIENT_SECRET} \
-  -e NEXTAUTH_URL=https://admin.example.com \
+  -e NEXTAUTH_URL=https://sso.aines.kr \
   -e NEXTAUTH_SECRET=${NEXTAUTH_SECRET} \
   -e NODE_ENV=production \
   authfusion/admin-console:1.0.0
 ```
 
-### 3.4 Node.js 직접 배포
+### 3.4 115번 서버 배포 (POC)
 
 ```bash
-# 1. 빌드
+# ① Windows에서 빌드
 cd products/admin-console
-npm ci --production=false
-npm run build
+npm ci && npm run build
 
-# 2. standalone 디렉토리 배포
-cp -r .next/standalone /opt/authfusion/admin-console/
-cp -r .next/static /opt/authfusion/admin-console/.next/static
-cp -r public /opt/authfusion/admin-console/public
+# ② 배포물 전송
+scp -r .next/standalone ju@192.168.0.115:~/authfusion/admin-console/
+scp -r .next/static ju@192.168.0.115:~/authfusion/admin-console/.next/static
+scp -r public ju@192.168.0.115:~/authfusion/admin-console/public
 
-# 3. 실행
-cd /opt/authfusion/admin-console
-NODE_ENV=production \
-NEXT_PUBLIC_SSO_SERVER_URL=https://sso.example.com \
-SSO_SERVER_URL=http://sso-server.internal:8080 \
-NEXTAUTH_URL=https://admin.example.com \
-NEXTAUTH_SECRET=<시크릿> \
-SSO_CLIENT_ID=admin-console \
-SSO_CLIENT_SECRET=<시크릿> \
-node server.js
+# ③ 115번에서 실행
+ssh ju@192.168.0.115
+cd ~/authfusion/admin-console
+NEXT_PUBLIC_SSO_SERVER_URL=https://sso.aines.kr PORT=3001 node server.js
+
+# ④ 백그라운드 실행
+nohup env NEXT_PUBLIC_SSO_SERVER_URL=https://sso.aines.kr PORT=3001 node server.js > admin-console.log 2>&1 &
 ```
 
 ### 3.5 systemd 서비스 등록
@@ -271,60 +278,25 @@ sudo systemctl start authfusion-admin
 ### 3.6 Nginx 리버스 프록시
 
 ```nginx
-# /etc/nginx/conf.d/authfusion-admin.conf
-
-upstream admin_console {
-    server 127.0.0.1:3000;
-}
-
-server {
-    listen 80;
-    server_name admin.example.com;
-    return 301 https://$server_name$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name admin.example.com;
-
-    ssl_certificate     /etc/nginx/ssl/admin.example.com.crt;
-    ssl_certificate_key /etc/nginx/ssl/admin.example.com.key;
-    ssl_protocols       TLSv1.2 TLSv1.3;
-    ssl_ciphers         ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
-    ssl_prefer_server_ciphers on;
-
-    # 보안 헤더
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header X-Content-Type-Options nosniff always;
-    add_header X-Frame-Options DENY always;
-
-    location / {
-        proxy_pass http://admin_console;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-
-        # WebSocket (Next.js HMR - 개발 시에만)
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-    }
-}
+# /usr/local/openresty/nginx/conf/nginx.conf (sso.aines.kr server block 추가)
+# SSO Server README 참조 - 동일한 server block에서 경로 기반 라우팅
 ```
+
+> **참고**: Nginx 전체 설정은 [SSO Server README](../sso-server/README.md#33-nginx-리버스-프록시-설정)를 참조하세요.
 
 ### 3.7 SSO Server 클라이언트 등록
 
 Admin Console이 SSO Server에 OIDC 로그인하려면 클라이언트 등록이 필요합니다.
 
 ```bash
-curl -X POST https://sso.example.com/api/v1/clients \
+curl -X POST https://sso.aines.kr/api/v1/clients \
   -H "Authorization: Bearer <admin-token>" \
   -H "Content-Type: application/json" \
   -d '{
     "clientId": "admin-console",
     "clientName": "AuthFusion Admin Console",
-    "redirectUris": ["https://admin.example.com/api/auth/callback/authfusion"],
+    "redirectUris": ["https://sso.aines.kr/api/auth/callback/authfusion"],
+    "postLogoutRedirectUris": ["https://sso.aines.kr"],
     "grantTypes": ["authorization_code", "refresh_token"],
     "scopes": ["openid", "profile", "email", "roles"],
     "requirePkce": true
@@ -335,11 +307,11 @@ curl -X POST https://sso.example.com/api/v1/clients \
 
 | 항목 | 설명 | 필수 |
 |------|------|------|
-| TLS 인증서 | `admin.example.com` 신뢰 CA 발급 | O |
+| TLS 인증서 | `sso.aines.kr` 신뢰 CA 발급 (단일 도메인) | O |
 | NEXTAUTH_SECRET | `openssl rand -base64 32`로 생성 | O |
 | SSO_CLIENT_SECRET | SSO Server에서 발급 | O |
-| NEXTAUTH_URL | `https://admin.example.com` | O |
-| NEXT_PUBLIC_SSO_SERVER_URL | `https://sso.example.com` | O |
+| NEXTAUTH_URL | `https://sso.aines.kr` (단일 도메인) | O |
+| NEXT_PUBLIC_SSO_SERVER_URL | `https://sso.aines.kr` | O |
 | Redirect URI | SSO Server에 등록된 값과 일치 | O |
 | NODE_ENV | `production` | O |
 
@@ -349,11 +321,11 @@ curl -X POST https://sso.example.com/api/v1/clients \
 
 | 변수명 | 설명 | 기본값 | 필수 |
 |--------|------|--------|------|
-| `NEXT_PUBLIC_SSO_SERVER_URL` | SSO Server URL (브라우저) | `http://localhost:8080` | O |
-| `SSO_SERVER_URL` | SSO Server URL (서버사이드) | `http://localhost:8080` | O |
+| `NEXT_PUBLIC_SSO_SERVER_URL` | SSO Server URL (브라우저) | `http://localhost:8081` | O |
+| `SSO_SERVER_URL` | SSO Server URL (서버사이드) | `http://localhost:8081` | O |
 | `SSO_CLIENT_ID` | OIDC 클라이언트 ID | `admin-console` | O |
 | `SSO_CLIENT_SECRET` | OIDC 클라이언트 시크릿 | - | O |
-| `NEXTAUTH_URL` | NextAuth 콜백 URL | `http://localhost:3000` | O |
+| `NEXTAUTH_URL` | NextAuth 콜백 URL | `http://localhost:3001` | O |
 | `NEXTAUTH_SECRET` | NextAuth 암호화 키 | - | O |
 | `NODE_ENV` | 실행 환경 | `development` | - |
 | `NEXT_PUBLIC_APP_NAME` | 앱 표시 이름 | `AuthFusion Admin Console` | - |
@@ -398,10 +370,10 @@ products/admin-console/
 ### API 연결 실패
 ```bash
 # SSO Server 실행 확인
-curl http://localhost:8080/actuator/health
+curl http://localhost:8081/actuator/health
 
 # CORS 오류 시 SSO Server 설정 확인
-# authfusion.sso.cors.allowed-origins에 http://localhost:3000 포함 여부
+# authfusion.sso.cors.allowed-origins에 http://localhost:3001 포함 여부
 ```
 
 ### OIDC 로그인 실패

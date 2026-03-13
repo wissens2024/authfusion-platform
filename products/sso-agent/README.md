@@ -75,7 +75,7 @@ SSO Agent는 Spring Boot Auto-Configuration을 지원합니다. 의존성 추가
 # application.yml
 authfusion:
   sso-agent:
-    sso-server-url: http://localhost:8080   # SSO Server 주소
+    sso-server-url: http://localhost:8081   # SSO Server 주소
     client-id: my-app                       # OAuth2 클라이언트 ID
     client-secret: my-secret                # OAuth2 클라이언트 시크릿
     callback-path: /sso/callback            # OIDC 콜백 경로
@@ -110,7 +110,7 @@ authfusion:
     <filter-class>com.authfusion.agent.filter.SsoAuthenticationFilter</filter-class>
     <init-param>
         <param-name>ssoServerUrl</param-name>
-        <param-value>http://localhost:8080</param-value>
+        <param-value>http://localhost:8081</param-value>
     </init-param>
     <init-param>
         <param-name>clientId</param-name>
@@ -135,7 +135,7 @@ public class SsoAgentInitializer implements ServletContextListener {
     @Override
     public void contextInitialized(ServletContextEvent sce) {
         SsoAgentProperties props = new SsoAgentProperties();
-        props.setSsoServerUrl("http://localhost:8080");
+        props.setSsoServerUrl("http://localhost:8081");
         props.setClientId("my-app");
         props.setClientSecret("my-secret");
 
@@ -180,7 +180,7 @@ public class SsoAgentInitializer implements ServletContextListener {
 # application.yml (운영 환경)
 authfusion:
   sso-agent:
-    sso-server-url: https://sso.example.com     # 운영 SSO Server 도메인
+    sso-server-url: https://sso.aines.kr     # 운영 SSO Server 도메인
     client-id: my-production-app
     client-secret: ${SSO_CLIENT_SECRET}          # 환경 변수에서 주입
     callback-path: /sso/callback
@@ -199,7 +199,7 @@ SSO Agent를 사용하려면 SSO Server에 OAuth2 클라이언트를 먼저 등�
 
 ```bash
 # SSO Server API로 클라이언트 등록
-curl -X POST https://sso.example.com/api/v1/clients \
+curl -X POST https://sso.aines.kr/api/v1/clients \
   -H "Authorization: Bearer <admin-token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -284,7 +284,7 @@ cd my-test-app && mvn spring-boot:run
 
 ### JWKS 가져오기 실패
 ```
-SSO Server URL 확인: curl https://sso.example.com/.well-known/jwks.json
+SSO Server URL 확인: curl https://sso.aines.kr/.well-known/jwks.json
 네트워크/방화벽: SSO Agent → SSO Server 8080 포트 연결 확인
 ```
 

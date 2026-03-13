@@ -7,7 +7,7 @@
 
 spring:
   datasource:
-    url: jdbc:postgresql://192.168.0.115:5432/authfusion_db?currentSchema=sso
+    url: jdbc:postgresql://localhost:5432/authfusion_db?currentSchema=sso
     username: sso_user
     password: ${DB_PASSWORD:AuthFusion2026!}
     hikari:
@@ -25,7 +25,7 @@ authfusion:
   sso:
     issuer: https://sso.aines.kr
     cors:
-      allowed-origins: https://sso.aines.kr,http://192.168.0.115:3000,http://localhost:3000
+      allowed-origins: https://sso.aines.kr,http://192.168.0.115:3001,http://localhost:3001
 
 server:
   forward-headers-strategy: framework

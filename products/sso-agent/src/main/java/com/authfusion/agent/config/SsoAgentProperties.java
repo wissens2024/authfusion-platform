@@ -12,7 +12,7 @@ import java.util.List;
 @Setter
 public class SsoAgentProperties {
 
-    private String ssoServerUrl = "http://localhost:8080";
+    private String ssoServerUrl = "http://localhost:8081";
     private String clientId;
     private String clientSecret;
     private String callbackPath = "/sso/callback";

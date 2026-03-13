@@ -80,8 +80,8 @@ docker compose logs -f admin-console
 ```
 
 **접속 URL:**
-- SSO Server: http://localhost:8080
-- Admin Console: http://localhost:3000
+- SSO Server: http://localhost:8081
+- Admin Console: http://localhost:3001
 - Vault: http://localhost:8200
 - PostgreSQL: localhost:5432
 
@@ -143,7 +143,7 @@ cd products/admin-console
 
 # 환경 변수 설정
 cp .env.local.example .env.local
-# .env.local 편집 (SSO_SERVER_URL=http://localhost:8080)
+# .env.local 편집 (SSO_SERVER_URL=http://localhost:8081)
 
 # 의존성 설치
 npm install
@@ -156,19 +156,19 @@ npm run dev
 
 ```bash
 # SSO Server 헬스 체크
-curl http://localhost:8080/actuator/health
+curl http://localhost:8081/actuator/health
 
 # OIDC Discovery
-curl http://localhost:8080/.well-known/openid-configuration
+curl http://localhost:8081/.well-known/openid-configuration
 
 # JWKS 공개키
-curl http://localhost:8080/.well-known/jwks.json
+curl http://localhost:8081/.well-known/jwks.json
 
 # Swagger UI
-open http://localhost:8080/swagger-ui.html
+open http://localhost:8081/swagger-ui.html
 
 # Admin Console
-open http://localhost:3000
+open http://localhost:3001
 ```
 
 ### 3.3 SSO Agent 개발
@@ -232,35 +232,37 @@ CC 모드 주요 차이점:
 ```
 ┌─────────── 외부 네트워크 ──────────┐
 │                                    │
-│  사용자 ──→ sso.example.com:443    │
-│  관리자 ──→ admin.example.com:443  │
+│  사용자/관리자 ──→ sso.aines.kr:443│
 │                                    │
-└──────────┬───────────┬─────────────┘
+└──────────────────┬─────────────────┘
+                   │
+    ┌──────────────▼──────────────┐
+    │   Nginx (Reverse Proxy)     │
+    │  TLS 종단, 보안 헤더        │
+    │  경로 기반 라우팅            │
+    └──────┬───────────┬──────────┘
            │           │
-    ┌──────▼───────────▼──────┐
-    │   Nginx (Reverse Proxy)  │
-    │  TLS 종단, 보안 헤더     │
-    └──────┬───────────┬──────┘
+           │ /admin/*  │ 그 외
            │           │
 ┌──────────▼──┐  ┌─────▼──────────────┐
-│ SSO Server  │  │ Admin Console      │
-│ :8080       │  │ :3000              │
-└──────┬──────┘  └────────────────────┘
-       │
-┌──────▼──────┐  ┌───────────────┐  ┌───────────────┐
-│ PostgreSQL  │  │ Vault / HSM   │  │ LDAP (선택)   │
-│ :5432       │  │ :8200         │  │ :389          │
-└─────────────┘  └───────────────┘  └───────────────┘
+│Admin Console│  │ SSO Server         │
+│ :3000       │  │ :8080              │
+└─────────────┘  └──────┬─────────────┘
+                        │
+┌───────────────┐  ┌────▼──────────┐  ┌───────────────┐
+│ PostgreSQL    │  │ Vault / HSM   │  │ LDAP (선택)   │
+│ :5432         │  │ :8200         │  │ :389          │
+└───────────────┘  └───────────────┘  └───────────────┘
 ```
 
 ### 5.2 도메인 계획
 
-| 서비스 | 도메인 | 포트 | 설명 |
-|--------|--------|------|------|
-| SSO Server | `sso.example.com` | 443 | OIDC Provider, 로그인 |
-| Admin Console | `admin.example.com` | 443 | 관리자 콘솔 |
-| PostgreSQL | 내부 전용 | 5432 | 외부 노출 금지 |
-| Vault | 내부 전용 | 8200 | 외부 노출 금지 |
+| 서비스 | 도메인 | 포트 | 경로 | 설명 |
+|--------|--------|------|------|------|
+| SSO Server | `sso.aines.kr` | 443 | `/` (기본) | OIDC Provider, 로그인 |
+| Admin Console | `sso.aines.kr` | 443 | `/admin/*` | 관리자 콘솔 (경로 기반 라우팅) |
+| PostgreSQL | 내부 전용 | 5432 | - | 외부 노출 금지 |
+| Vault | 내부 전용 | 8200 | - | 외부 노출 금지 |
 
 ### 5.3 SSO Server 운영 배포
 
@@ -285,15 +287,15 @@ server:
 
 spring:
   datasource:
-    url: jdbc:postgresql://db.internal:5432/authfusion_sso?ssl=true&sslmode=verify-full
+    url: jdbc:postgresql://db.internal:5432/authfusion_db?currentSchema=sso&ssl=true&sslmode=verify-full
     username: authfusion
     password: ${DB_PASSWORD}
 
 authfusion:
   sso:
-    issuer: https://sso.example.com
+    issuer: https://sso.aines.kr
     cors:
-      allowed-origins: https://admin.example.com
+      allowed-origins: https://sso.aines.kr
     ldap:
       enabled: false
 EOF
@@ -341,12 +343,12 @@ docker run -d \
   --restart unless-stopped \
   -p 8080:8080 \
   -e SPRING_PROFILES_ACTIVE=cc \
-  -e SPRING_DATASOURCE_URL=jdbc:postgresql://db.internal:5432/authfusion_sso \
+  -e SPRING_DATASOURCE_URL=jdbc:postgresql://db.internal:5432/authfusion_db?currentSchema=sso \
   -e SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD} \
-  -e AUTHFUSION_SSO_ISSUER=https://sso.example.com \
+  -e AUTHFUSION_SSO_ISSUER=https://sso.aines.kr \
   -e AUTHFUSION_KEY_MASTER_SECRET=${MASTER_SECRET} \
   -e AUTHFUSION_SSO_CC_EXTENDED_FEATURES_ENABLED=false \
-  -e AUTHFUSION_SSO_CORS_ALLOWED_ORIGINS=https://admin.example.com \
+  -e AUTHFUSION_SSO_CORS_ALLOWED_ORIGINS=https://sso.aines.kr \
   authfusion/sso-server:1.0.0
 ```
 
@@ -363,11 +365,11 @@ docker run -d \
   --name authfusion-admin-console \
   --restart unless-stopped \
   -p 3000:3000 \
-  -e NEXT_PUBLIC_SSO_SERVER_URL=https://sso.example.com \
-  -e SSO_SERVER_URL=http://sso-server.internal:8080 \
+  -e NEXT_PUBLIC_SSO_SERVER_URL=https://sso.aines.kr \
+  -e SSO_SERVER_URL=http://sso-server:8081 \
   -e SSO_CLIENT_ID=admin-console \
   -e SSO_CLIENT_SECRET=${SSO_CLIENT_SECRET} \
-  -e NEXTAUTH_URL=https://admin.example.com \
+  -e NEXTAUTH_URL=https://sso.aines.kr \
   -e NEXTAUTH_SECRET=${NEXTAUTH_SECRET} \
   -e NODE_ENV=production \
   authfusion/admin-console:1.0.0
@@ -430,7 +432,7 @@ mvn deploy -Pcc
 ```yaml
 authfusion:
   sso-agent:
-    sso-server-url: https://sso.example.com
+    sso-server-url: https://sso.aines.kr
     require-https: true
     session-timeout: 1800
 ```
@@ -439,49 +441,14 @@ authfusion:
 
 ## 6. Nginx 리버스 프록시 설정
 
-### 6.1 SSO Server
+### 6.1 통합 리버스 프록시 (경로 기반 라우팅)
 
 ```nginx
-# /etc/nginx/conf.d/authfusion-sso.conf
+# /etc/nginx/conf.d/authfusion.conf
 
 upstream sso_backend {
     server 127.0.0.1:8080;
 }
-
-server {
-    listen 80;
-    server_name sso.example.com;
-    return 301 https://$server_name$request_uri;
-}
-
-server {
-    listen 443 ssl http2;
-    server_name sso.example.com;
-
-    ssl_certificate     /etc/nginx/ssl/sso.example.com.crt;
-    ssl_certificate_key /etc/nginx/ssl/sso.example.com.key;
-    ssl_protocols       TLSv1.2 TLSv1.3;
-    ssl_ciphers         ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
-    ssl_prefer_server_ciphers on;
-
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header X-Content-Type-Options nosniff always;
-    add_header X-Frame-Options DENY always;
-
-    location / {
-        proxy_pass http://sso_backend;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-### 6.2 Admin Console
-
-```nginx
-# /etc/nginx/conf.d/authfusion-admin.conf
 
 upstream admin_backend {
     server 127.0.0.1:3000;
@@ -489,16 +456,16 @@ upstream admin_backend {
 
 server {
     listen 80;
-    server_name admin.example.com;
+    server_name sso.aines.kr;
     return 301 https://$server_name$request_uri;
 }
 
 server {
     listen 443 ssl http2;
-    server_name admin.example.com;
+    server_name sso.aines.kr;
 
-    ssl_certificate     /etc/nginx/ssl/admin.example.com.crt;
-    ssl_certificate_key /etc/nginx/ssl/admin.example.com.key;
+    ssl_certificate     /etc/nginx/ssl/sso.aines.kr.crt;
+    ssl_certificate_key /etc/nginx/ssl/sso.aines.kr.key;
     ssl_protocols       TLSv1.2 TLSv1.3;
     ssl_ciphers         ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
     ssl_prefer_server_ciphers on;
@@ -507,7 +474,8 @@ server {
     add_header X-Content-Type-Options nosniff always;
     add_header X-Frame-Options DENY always;
 
-    location / {
+    # Admin Console (경로 기반 라우팅)
+    location /admin/ {
         proxy_pass http://admin_backend;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -516,6 +484,15 @@ server {
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection "upgrade";
+    }
+
+    # SSO Server (기본 경로)
+    location / {
+        proxy_pass http://sso_backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 ```
@@ -570,7 +547,7 @@ SSO Server 시작 시 자동으로 적용됩니다:
 
 ```bash
 # 마이그레이션 상태 확인
-curl http://localhost:8080/actuator/flyway
+curl http://localhost:8081/actuator/flyway
 
 # 마이그레이션 복구
 java -jar sso-server.jar --spring.flyway.repair
@@ -586,24 +563,24 @@ java -jar sso-server.jar --spring.flyway.repair
 |----------|--------|------|
 | `SERVER_PORT` | 8080 | 서버 포트 |
 | `SPRING_PROFILES_ACTIVE` | (기본) | 프로파일 (cc, docker, prod) |
-| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/authfusion_sso` | DB URL |
+| `SPRING_DATASOURCE_URL` | `jdbc:postgresql://localhost:5432/authfusion_db?currentSchema=sso` | DB URL |
 | `SPRING_DATASOURCE_USERNAME` | authfusion | DB 사용자명 |
 | `SPRING_DATASOURCE_PASSWORD` | authfusion-secret | DB 비밀번호 |
-| `AUTHFUSION_SSO_ISSUER` | `http://localhost:8080` | OIDC Issuer URL |
+| `AUTHFUSION_SSO_ISSUER` | `http://localhost:8081` | OIDC Issuer URL |
 | `AUTHFUSION_KEY_MASTER_SECRET` | (기본값) | 키 암호화 마스터 시크릿 |
 | `AUTHFUSION_SSO_CC_EXTENDED_FEATURES_ENABLED` | true | 확장 기능 활성화 |
-| `AUTHFUSION_SSO_CORS_ALLOWED_ORIGINS` | `http://localhost:3000` | CORS 허용 도메인 |
+| `AUTHFUSION_SSO_CORS_ALLOWED_ORIGINS` | `http://localhost:3001` | CORS 허용 도메인 |
 | `AUTHFUSION_LDAP_BIND_PASSWORD` | - | LDAP 바인드 비밀번호 |
 
 ### 8.2 Admin Console
 
 | 환경 변수 | 기본값 | 설명 |
 |----------|--------|------|
-| `NEXT_PUBLIC_SSO_SERVER_URL` | `http://localhost:8080` | SSO Server URL (브라우저) |
-| `SSO_SERVER_URL` | `http://localhost:8080` | SSO Server URL (서버사이드) |
+| `NEXT_PUBLIC_SSO_SERVER_URL` | `http://localhost:8081` | SSO Server URL (브라우저) |
+| `SSO_SERVER_URL` | `http://localhost:8081` | SSO Server URL (서버사이드) |
 | `SSO_CLIENT_ID` | admin-console | OIDC 클라이언트 ID |
 | `SSO_CLIENT_SECRET` | - | OIDC 클라이언트 시크릿 |
-| `NEXTAUTH_URL` | `http://localhost:3000` | NextAuth 콜백 URL |
+| `NEXTAUTH_URL` | `http://localhost:3001` | NextAuth 콜백 URL |
 | `NEXTAUTH_SECRET` | - | NextAuth 암호화 키 |
 | `NODE_ENV` | development | 실행 환경 |
 
@@ -611,7 +588,7 @@ java -jar sso-server.jar --spring.flyway.repair
 
 | 설정 키 | 기본값 | 설명 |
 |---------|--------|------|
-| `authfusion.sso-agent.sso-server-url` | `http://localhost:8080` | SSO Server URL |
+| `authfusion.sso-agent.sso-server-url` | `http://localhost:8081` | SSO Server URL |
 | `authfusion.sso-agent.client-id` | - | OAuth2 클라이언트 ID |
 | `authfusion.sso-agent.client-secret` | - | OAuth2 클라이언트 시크릿 |
 | `authfusion.sso-agent.require-https` | false | HTTPS 강제 |
@@ -625,10 +602,10 @@ java -jar sso-server.jar --spring.flyway.repair
 
 ```bash
 # SSO Server
-curl http://localhost:8080/actuator/health
+curl http://localhost:8081/actuator/health
 
 # Admin Console
-curl http://localhost:3000/api/health
+curl http://localhost:3001/api/health
 
 # PostgreSQL
 docker exec authfusion-postgres pg_isready -U authfusion
@@ -637,7 +614,7 @@ docker exec authfusion-postgres pg_isready -U authfusion
 ### 9.2 Prometheus 메트릭 (SSO Server)
 
 ```bash
-curl http://localhost:8080/actuator/prometheus
+curl http://localhost:8081/actuator/prometheus
 ```
 
 주요 메트릭:
@@ -686,7 +663,7 @@ journalctl -u authfusion-sso -f
 ### Admin Console API 호출 실패
 ```bash
 # SSO Server 실행 확인
-curl http://localhost:8080/actuator/health
+curl http://localhost:8081/actuator/health
 
 # CORS 확인
 # authfusion.sso.cors.allowed-origins에 Admin Console URL 포함
@@ -711,8 +688,8 @@ openssl rsa -noout -modulus -in server.key | openssl md5
 ### 로컬 개발 (전체 스택)
 ```bash
 docker compose up -d
-# SSO Server → http://localhost:8080
-# Admin Console → http://localhost:3000
+# SSO Server → http://localhost:8081
+# Admin Console → http://localhost:3001
 ```
 
 ### 로컬 개발 (개별 실행)

@@ -83,7 +83,7 @@ public class AuthorizationEndpoint {
         }
 
         // Redirect to login page with authorization parameters
-        String loginUrl = "/login?" +
+        String loginUrl = "/sso/login?" +
                 "client_id=" + encode(clientId) +
                 "&redirect_uri=" + encode(redirectUri) +
                 "&scope=" + encode(scope) +

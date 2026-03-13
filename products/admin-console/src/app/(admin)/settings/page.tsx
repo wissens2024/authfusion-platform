@@ -9,7 +9,7 @@ import type { HealthStatus } from '@/lib/types';
 export default function SettingsPage() {
   const [health, setHealth] = useState<HealthStatus | null>(null);
   const [loading, setLoading] = useState(true);
-  const [ssoUrl] = useState(process.env.NEXT_PUBLIC_SSO_SERVER_URL || 'http://localhost:8080');
+  const [ssoUrl] = useState(process.env.NEXT_PUBLIC_SSO_SERVER_URL || 'http://localhost:8081');
 
   useEffect(() => {
     async function loadHealth() {

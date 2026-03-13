@@ -212,7 +212,7 @@ JWT(JSON Web Token) 형식으로 RS256 알고리즘으로 서명된다.
 
 ```json
 {
-  "iss": "https://sso.example.com",
+  "iss": "https://sso.aines.kr",
   "sub": "user-uuid",
   "aud": "my-client",
   "exp": 1709470200,
@@ -243,7 +243,7 @@ OpenID Connect 표준에 따른 ID Token:
 
 ```json
 {
-  "iss": "https://sso.example.com",
+  "iss": "https://sso.aines.kr",
   "sub": "user-uuid",
   "aud": "my-client",
   "exp": 1709470200,
@@ -413,12 +413,12 @@ GET /.well-known/openid-configuration
 
 ```json
 {
-  "issuer": "https://sso.example.com",
-  "authorization_endpoint": "https://sso.example.com/oauth2/authorize",
-  "token_endpoint": "https://sso.example.com/oauth2/token",
-  "userinfo_endpoint": "https://sso.example.com/oauth2/userinfo",
-  "revocation_endpoint": "https://sso.example.com/oauth2/revoke",
-  "jwks_uri": "https://sso.example.com/.well-known/jwks.json",
+  "issuer": "https://sso.aines.kr",
+  "authorization_endpoint": "https://sso.aines.kr/oauth2/authorize",
+  "token_endpoint": "https://sso.aines.kr/oauth2/token",
+  "userinfo_endpoint": "https://sso.aines.kr/oauth2/userinfo",
+  "revocation_endpoint": "https://sso.aines.kr/oauth2/revoke",
+  "jwks_uri": "https://sso.aines.kr/.well-known/jwks.json",
   "response_types_supported": ["code"],
   "grant_types_supported": [
     "authorization_code",

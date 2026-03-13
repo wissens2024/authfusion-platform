@@ -137,7 +137,7 @@ AUTHFUSION_SSO_CC_EXTENDED_FEATURES_ENABLED=false
 AUTHFUSION_KEY_MASTER_SECRET=CHANGE_ME
 
 # [필수] 데이터베이스
-SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/authfusion_sso
+SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/authfusion_db?currentSchema=sso
 SPRING_DATASOURCE_USERNAME=authfusion
 SPRING_DATASOURCE_PASSWORD=CHANGE_ME
 POSTGRES_USER=authfusion
@@ -145,7 +145,7 @@ POSTGRES_PASSWORD=CHANGE_ME
 POSTGRES_DB=authfusion_sso
 
 # [필수] OIDC Issuer (실제 도메인으로 변경)
-AUTHFUSION_SSO_ISSUER=https://sso.internal.example.com
+AUTHFUSION_SSO_ISSUER=https://sso.aines.kr
 ENVEOF
 
 # 문서
@@ -323,7 +323,7 @@ services:
     volumes:
       - sso-logs:/app/logs
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:8081/actuator/health || exit 1"]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -353,22 +353,22 @@ docker compose logs -f sso-server
 
 ```bash
 # Health Check
-curl -s http://localhost:8080/actuator/health
+curl -s http://localhost:8081/actuator/health
 # 기대: {"status":"UP"}
 
 # OIDC Discovery
-curl -s http://localhost:8080/.well-known/openid-configuration | python3 -m json.tool
+curl -s http://localhost:8081/.well-known/openid-configuration | python3 -m json.tool
 
 # 확장 기능 비활성화 확인
-curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/api/v1/clients
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/api/v1/clients
 # 기대: 403
 
 # Swagger 비활성화 확인
-curl -s -o /dev/null -w "%{http_code}" http://localhost:8080/swagger-ui.html
+curl -s -o /dev/null -w "%{http_code}" http://localhost:8081/swagger-ui.html
 # 기대: 403
 
 # JWKS 엔드포인트 확인
-curl -s http://localhost:8080/.well-known/jwks.json | python3 -m json.tool
+curl -s http://localhost:8081/.well-known/jwks.json | python3 -m json.tool
 ```
 
 ---
@@ -421,10 +421,10 @@ cat > /etc/authfusion/env << 'EOF'
 SPRING_PROFILES_ACTIVE=cc
 AUTHFUSION_SSO_CC_EXTENDED_FEATURES_ENABLED=false
 AUTHFUSION_KEY_MASTER_SECRET=<마스터-시크릿-여기에-입력>
-SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/authfusion_sso
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/authfusion_db?currentSchema=sso
 SPRING_DATASOURCE_USERNAME=authfusion
 SPRING_DATASOURCE_PASSWORD=<DB-비밀번호>
-AUTHFUSION_SSO_ISSUER=https://sso.internal.example.com
+AUTHFUSION_SSO_ISSUER=https://sso.aines.kr
 EOF
 chmod 600 /etc/authfusion/env
 

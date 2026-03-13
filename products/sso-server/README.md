@@ -42,11 +42,11 @@ docker run -d \
   -p 5432:5432 \
   -e POSTGRES_USER=authfusion \
   -e POSTGRES_PASSWORD=authfusion-secret \
-  -e POSTGRES_DB=authfusion_sso \
+  -e POSTGRES_DB=authfusion_db \
   postgres:16
 
 # 연결 확인
-docker exec -it authfusion-postgres psql -U authfusion -d authfusion_sso -c "SELECT 1"
+docker exec -it authfusion-postgres psql -U authfusion -d authfusion_db -c "SELECT 1"
 ```
 
 또는 프로젝트 루트에서 Docker Compose로 PostgreSQL만 실행:
@@ -59,6 +59,12 @@ docker compose up -d postgres
 ### 1.3 SSO Server 실행 (Maven)
 
 ```bash
+
+# Maven PATH 설정 (PowerShell 방식)
+$env:PATH = "C:\apache-maven-3.9.3\bin;" + $env:PATH
+# Maven PATH 설정 (cmd 방식)
+set PATH=C:\apache-maven-3.9.3\bin;%PATH%  
+
 # 프로젝트 루트 기준
 cd products/sso-server
 
@@ -80,16 +86,16 @@ java -jar target/authfusion-sso-server-1.0.0-SNAPSHOT.jar
 
 ```bash
 # 헬스 체크
-curl http://localhost:8080/actuator/health
+curl http://localhost:8081/actuator/health
 
 # OIDC Discovery
-curl http://localhost:8080/.well-known/openid-configuration
+curl http://localhost:8081/.well-known/openid-configuration
 
 # JWKS 공개키
-curl http://localhost:8080/.well-known/jwks.json
+curl http://localhost:8081/.well-known/jwks.json
 
 # Swagger UI (개발 모드에서만)
-open http://localhost:8080/swagger-ui.html
+open http://localhost:8081/swagger-ui.html
 ```
 
 ### 1.5 개발 시 유용한 환경 변수
@@ -120,11 +126,11 @@ docker build -t authfusion/sso-server:dev .
 # 실행 (PostgreSQL이 이미 실행 중인 경우)
 docker run -d \
   --name authfusion-sso-server \
-  -p 8080:8080 \
-  -e SPRING_DATASOURCE_URL=jdbc:postgresql://host.docker.internal:5432/authfusion_sso \
+  -p 8081:8081 \
+  -e SPRING_DATASOURCE_URL=jdbc:postgresql://host.docker.internal:5432/authfusion_db?currentSchema=sso \
   -e SPRING_DATASOURCE_USERNAME=authfusion \
   -e SPRING_DATASOURCE_PASSWORD=authfusion-secret \
-  -e AUTHFUSION_SSO_ISSUER=http://localhost:8080 \
+  -e AUTHFUSION_SSO_ISSUER=http://localhost:8081 \
   authfusion/sso-server:dev
 ```
 
@@ -158,11 +164,11 @@ docker compose -f docker-compose.yml -f docker-compose.cc.yml up -d
 ```
                     ┌────────────────────────────┐
                     │     Nginx (Reverse Proxy)   │
-                    │  sso.example.com:443 (TLS)  │
+                    │  sso.aines.kr:443 (TLS)  │
                     └──────────┬─────────────────┘
                                │
                     ┌──────────▼─────────────────┐
-                    │   SSO Server (port 8080)    │
+                    │   SSO Server (port 8081)    │
                     │  Spring Boot Application    │
                     └──────────┬─────────────────┘
                                │
@@ -174,110 +180,97 @@ docker compose -f docker-compose.yml -f docker-compose.cc.yml up -d
      └───────────────┘ └───────────────┘ └───────────────┘
 ```
 
-### 3.2 JAR 직접 배포
+### 3.2 115번 서버 배포 (POC)
 
 ```bash
-# 1. CC 프로파일 빌드
+# ① Windows에서 빌드
 cd products/sso-server
-mvn clean package -Pcc -DskipTests
+mvn clean package -DskipTests
 
-# 2. 배포물 복사
-sudo mkdir -p /opt/authfusion/{config,logs}
-sudo cp target/authfusion-sso-server-*.jar /opt/authfusion/sso-server.jar
-sudo chown -R authfusion:authfusion /opt/authfusion
-sudo chmod 550 /opt/authfusion/sso-server.jar
+# ② jar 전송
+scp target/authfusion-sso-server-1.0.0-SNAPSHOT.jar ju@192.168.0.115:~/authfusion/
 
-# 3. 운영 설정 파일 생성
-sudo cat > /opt/authfusion/config/application-prod.yml << 'EOF'
-server:
-  port: 8080
-  forward-headers-strategy: framework  # Nginx 리버스 프록시 뒤에서 실행
+# ③ 115번에서 실행
+ssh ju@192.168.0.115
+cd ~/authfusion
+java -jar authfusion-sso-server-1.0.0-SNAPSHOT.jar --spring.profiles.active=prod
 
-spring:
-  datasource:
-    url: jdbc:postgresql://db.internal:5432/authfusion_sso?ssl=true&sslmode=verify-full
-    username: authfusion
-    password: ${DB_PASSWORD}
-
-authfusion:
-  sso:
-    issuer: https://sso.example.com
-    cors:
-      allowed-origins: https://admin.example.com
-    ldap:
-      enabled: false  # 필요 시 true
-EOF
-
-# 4. systemd 서비스 등록
-sudo cat > /etc/systemd/system/authfusion-sso.service << 'EOF'
-[Unit]
-Description=AuthFusion SSO Server
-After=network.target postgresql.service
-
-[Service]
-Type=simple
-User=authfusion
-Group=authfusion
-WorkingDirectory=/opt/authfusion
-ExecStart=/usr/bin/java \
-  -Xms512m -Xmx1024m \
-  -Dspring.profiles.active=cc,prod \
-  -jar /opt/authfusion/sso-server.jar \
-  --spring.config.additional-location=file:/opt/authfusion/config/
-Environment=AUTHFUSION_KEY_MASTER_SECRET=<마스터키>
-Environment=DB_PASSWORD=<DB비밀번호>
-Restart=on-failure
-RestartSec=10
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-# 5. 서비스 시작
-sudo systemctl daemon-reload
-sudo systemctl enable authfusion-sso
-sudo systemctl start authfusion-sso
-sudo systemctl status authfusion-sso
+# ④ 백그라운드 실행 (nohup)
+nohup java -jar authfusion-sso-server-1.0.0-SNAPSHOT.jar --spring.profiles.active=prod > sso-server.log 2>&1 &
 ```
 
 ### 3.3 Nginx 리버스 프록시 설정
 
 ```nginx
-# /etc/nginx/conf.d/authfusion-sso.conf
-
-upstream sso_backend {
-    server 127.0.0.1:8080;
-}
+# /usr/local/openresty/nginx/conf/nginx.conf (sso.aines.kr server block 추가)
 
 server {
-    listen 80;
-    server_name sso.example.com;
-    return 301 https://$server_name$request_uri;
-}
+    listen 443 ssl;
+    server_name sso.aines.kr;
+    server_tokens off;
+    ssl_certificate /home/ju/nginx/_wildcard_.aines.kr_2025042584537.crt.pem;
+    ssl_certificate_key /home/ju/nginx/_wildcard_.aines.kr_2025042584537.key.pem;
 
-server {
-    listen 443 ssl http2;
-    server_name sso.example.com;
-
-    # TLS 설정
-    ssl_certificate     /etc/nginx/ssl/sso.example.com.crt;
-    ssl_certificate_key /etc/nginx/ssl/sso.example.com.key;
-    ssl_protocols       TLSv1.2 TLSv1.3;
-    ssl_ciphers         ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
-    ssl_prefer_server_ciphers on;
-
-    # 보안 헤더
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
-    add_header X-Content-Type-Options nosniff always;
-    add_header X-Frame-Options DENY always;
-
-    # 프록시
-    location / {
-        proxy_pass http://sso_backend;
+    # ── SSO Server (Spring Boot :8081) ──
+    location /api/ {
+        proxy_pass http://127.0.0.1:8081;
+        proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /oauth2/ {
+        proxy_pass http://127.0.0.1:8081;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /.well-known/ {
+        proxy_pass http://127.0.0.1:8081;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /sso/ {
+        proxy_pass http://127.0.0.1:8081;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    location /css/ {
+        proxy_pass http://127.0.0.1:8081;
+    }
+    location /js/ {
+        proxy_pass http://127.0.0.1:8081;
+    }
+
+    location /actuator/ {
+        proxy_pass http://127.0.0.1:8081;
+    }
+
+    location /swagger-ui {
+        proxy_pass http://127.0.0.1:8081;
+    }
+    location /v3/api-docs {
+        proxy_pass http://127.0.0.1:8081;
+    }
+
+    # ── Admin Console (Next.js :3001) ──
+    location / {
+        proxy_pass http://127.0.0.1:3001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
     }
 }
 ```
@@ -289,10 +282,10 @@ server {
 | TLS 인증서 | 신뢰 CA 발급 인증서 | O |
 | 마스터 키 | `AUTHFUSION_KEY_MASTER_SECRET` 고유값 설정 | O |
 | DB SSL | PostgreSQL TLS 연결 (`sslmode=verify-full`) | O (CC) |
-| issuer URL | `authfusion.sso.issuer=https://sso.example.com` | O |
+| issuer URL | `authfusion.sso.issuer=https://sso.aines.kr` | O |
 | CORS | Admin Console 도메인만 허용 | O |
 | NTP 동기화 | TOTP MFA 정확성 (30초 오차 이내) | O |
-| 방화벽 | 8080 내부만, 443 외부 허용 | O |
+| 방화벽 | 8081 내부만, 443 외부 허용 | O |
 | 로그 경로 | `/opt/authfusion/logs/` 디스크 용량 확보 | O |
 | 백업 | PostgreSQL 일일 백업 (pg_dump) | O |
 
@@ -305,7 +298,7 @@ server {
 | (기본) | 로컬 개발 | 별도 설정 없음 |
 | `docker` | Docker Compose 내부 | `SPRING_PROFILES_ACTIVE=docker` |
 | `cc` | CC 하드닝 모드 | `SPRING_PROFILES_ACTIVE=cc` |
-| `prod` | 운영 환경 | 직접 생성하여 사용 |
+| `prod` | 운영 환경 (115번) | `--spring.profiles.active=prod` |
 | `test` | 테스트 | 테스트 실행 시 자동 |
 
 ### CC 모드 vs 기본 모드 주요 차이
@@ -394,15 +387,15 @@ mvn test jacoco:report
 
 ### 포트 충돌
 ```bash
-# 8080 포트 사용 중인 프로세스 확인
-lsof -i :8080  # macOS/Linux
-netstat -ano | findstr :8080  # Windows
+# 8081 포트 사용 중인 프로세스 확인
+lsof -i :8081  # macOS/Linux
+netstat -ano | findstr :8081  # Windows
 ```
 
 ### DB 연결 실패
 ```bash
 # PostgreSQL 접속 확인
-psql -h localhost -p 5432 -U authfusion -d authfusion_sso -c "SELECT 1"
+psql -h localhost -p 5432 -U authfusion -d authfusion_db -c "SELECT 1"
 
 # Docker PostgreSQL 로그
 docker logs authfusion-postgres
@@ -411,7 +404,7 @@ docker logs authfusion-postgres
 ### Flyway 마이그레이션 오류
 ```bash
 # 마이그레이션 상태 확인
-curl http://localhost:8080/actuator/flyway
+curl http://localhost:8081/actuator/flyway
 
 # 마이그레이션 복구 (체크섬 불일치 시)
 java -jar target/authfusion-sso-server-*.jar --spring.flyway.repair

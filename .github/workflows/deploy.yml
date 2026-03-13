@@ -1,0 +1,123 @@
+# ============================================================================
+# AuthFusion Platform - 자동 배포 (192.168.0.115 / sso.aines.kr)
+# 패턴: git pull → 빌드 → pm2/java 재시작 (SSE 방식 동일)
+# ============================================================================
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'products/sso-server/**'
+      - 'products/admin-console/**'
+      - '.github/workflows/**'
+
+jobs:
+  # --------------------------------------------------------------------------
+  # 변경 감지
+  # --------------------------------------------------------------------------
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      sso-server: ${{ steps.changes.outputs.sso-server }}
+      admin-console: ${{ steps.changes.outputs.admin-console }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - id: changes
+        run: |
+          CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only HEAD)
+
+          # Workflow 변경 → 전체 배포
+          if echo "$CHANGED" | grep -qE '^\.github/workflows/'; then
+            echo "sso-server=true" >> "$GITHUB_OUTPUT"
+            echo "admin-console=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if echo "$CHANGED" | grep -qE '^products/sso-server/'; then
+            echo "sso-server=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "sso-server=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          if echo "$CHANGED" | grep -qE '^products/admin-console/'; then
+            echo "admin-console=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "admin-console=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # --------------------------------------------------------------------------
+  # SSO Server 배포
+  # --------------------------------------------------------------------------
+  deploy-sso-server:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.sso-server == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy SSO Server via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/ju/authfusion-platform
+            git fetch --force origin main
+            git reset --hard origin/main
+
+            cd products/sso-server
+            mvn clean package -DskipTests -q
+
+            # 기존 프로세스 종료 & 재시작
+            pkill -f 'authfusion-sso-server' || true
+            sleep 2
+            nohup java -jar target/authfusion-sso-server-*.jar \
+              --spring.profiles.active=prod \
+              > /home/ju/authfusion-platform/sso-server.log 2>&1 &
+
+            # 헬스체크 대기 (최대 60초)
+            for i in $(seq 1 30); do
+              if curl -sf http://localhost:8081/actuator/health > /dev/null 2>&1; then
+                echo "✓ SSO Server started"
+                exit 0
+              fi
+              sleep 2
+            done
+            echo "✗ SSO Server failed to start"
+            tail -30 /home/ju/authfusion-platform/sso-server.log
+            exit 1
+
+  # --------------------------------------------------------------------------
+  # Admin Console 배포
+  # --------------------------------------------------------------------------
+  deploy-admin-console:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.admin-console == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy Admin Console via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
+            cd /home/ju/authfusion-platform
+            git fetch --force origin main
+            git reset --hard origin/main
+
+            cd products/admin-console
+            npm ci
+            NEXT_PUBLIC_SSO_SERVER_URL=https://sso.aines.kr npm run build
+
+            # pm2 재시작
+            pm2 delete authfusion-admin 2>/dev/null || true
+            pm2 start ecosystem.config.js
+            pm2 save
+            echo "✓ Admin Console deployed"

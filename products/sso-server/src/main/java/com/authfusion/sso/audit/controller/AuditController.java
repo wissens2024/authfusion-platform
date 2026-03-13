@@ -26,22 +26,31 @@ public class AuditController {
     private final AuditService auditService;
 
     @GetMapping("/events")
-    @Operation(summary = "Query audit events")
+    @Operation(summary = "Query audit events with optional filters")
     public ResponseEntity<Page<AuditEventResponse>> getEvents(
-            @Parameter(description = "Filter by event type")
+            @Parameter(description = "Filter: AUTHENTICATION, USER_MANAGEMENT, CLIENT_MANAGEMENT, TOKEN_OPERATION")
             @RequestParam(required = false) String eventType,
             @Parameter(description = "Filter by user ID")
             @RequestParam(required = false) String userId,
-            @Parameter(description = "Filter by action")
+            @Parameter(description = "Filter by username (partial match)")
+            @RequestParam(required = false) String username,
+            @Parameter(description = "Filter by action (LOGIN_SUCCESS, LOGIN_FAILED, etc.)")
             @RequestParam(required = false) String action,
             @Parameter(description = "Filter by success status")
             @RequestParam(required = false) Boolean success,
-            @Parameter(description = "From timestamp")
+            @Parameter(description = "From timestamp (ISO)")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @Parameter(description = "To timestamp")
+            @Parameter(description = "To timestamp (ISO)")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int size) {
-        return ResponseEntity.ok(auditService.getEvents(eventType, userId, action, success, from, to, page, size));
+            @RequestParam(defaultValue = "50") int size) {
+        return ResponseEntity.ok(
+                auditService.getEvents(eventType, userId, username, action, success, from, to, page, size));
+    }
+
+    @GetMapping("/statistics")
+    @Operation(summary = "Get audit statistics")
+    public ResponseEntity<?> getStatistics() {
+        return ResponseEntity.ok(auditService.getStatistics());
     }
 }
