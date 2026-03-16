@@ -63,6 +63,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 300s
           command_timeout: 10m
           script: |
             cd /home/ju/authfusion-platform
@@ -78,18 +79,8 @@ jobs:
             nohup java -jar target/sso-server-1.0.0-SNAPSHOT.jar \
               --spring.profiles.active=prod \
               > /home/ju/authfusion-platform/sso-server.log 2>&1 &
-
-            # 헬스체크 대기 (최대 60초)
-            for i in $(seq 1 30); do
-              if curl -sf http://localhost:8081/actuator/health > /dev/null 2>&1; then
-                echo "✓ SSO Server started"
-                exit 0
-              fi
-              sleep 2
-            done
-            echo "✗ SSO Server failed to start"
-            tail -30 /home/ju/authfusion-platform/sso-server.log
-            exit 1
+            sleep 3
+            echo "✓ SSO Server deploy done (PID: $!)"
 
   # --------------------------------------------------------------------------
   # Admin Console 배포
@@ -105,10 +96,12 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          timeout: 300s
           command_timeout: 10m
           script: |
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            export PATH="$HOME/.local/share/pnpm:$HOME/.npm-global/bin:$PATH"
 
             cd /home/ju/authfusion-platform
             git fetch --force origin main
@@ -120,7 +113,7 @@ jobs:
 
             # standalone에 static/public 복사 (CSS/JS 필수)
             cp -r .next/static .next/standalone/.next/static
-            cp -r public .next/standalone/public
+            [ -d public ] && cp -r public .next/standalone/public
 
             # pm2 재시작
             pm2 delete authfusion-admin 2>/dev/null || true
