@@ -116,6 +116,10 @@ jobs:
             npm ci
             NEXT_PUBLIC_SSO_SERVER_URL=https://sso.aines.kr npm run build
 
+            # standalone에 static/public 복사 (CSS/JS 필수)
+            cp -r .next/static .next/standalone/.next/static
+            cp -r public .next/standalone/public
+
             # pm2 재시작
             pm2 delete authfusion-admin 2>/dev/null || true
             pm2 start ecosystem.config.js
