@@ -66,6 +66,8 @@ jobs:
           timeout: 300s
           command_timeout: 10m
           script: |
+            export PATH="/usr/bin:/usr/local/bin:$PATH"
+
             cd /home/ju/authfusion-platform
             git fetch --force origin main
             git reset --hard origin/main
@@ -76,10 +78,11 @@ jobs:
             # 기존 프로세스 종료 & 재시작
             pkill -f 'sso-server-1.0.0-SNAPSHOT' || true
             sleep 2
-            nohup java -jar target/sso-server-1.0.0-SNAPSHOT.jar \
+            # setsid로 세션 완전 분리 (SSH 종료 시 SIGTERM 방지)
+            setsid java -jar target/sso-server-1.0.0-SNAPSHOT.jar \
               --spring.profiles.active=prod \
               > /home/ju/authfusion-platform/sso-server.log 2>&1 &
-            sleep 3
+            disown
             echo "✓ SSO Server deploy done (PID: $!)"
 
   # --------------------------------------------------------------------------
