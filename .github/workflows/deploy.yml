@@ -47,14 +47,14 @@ jobs:
             echo "[2/10] DONE" >> $LOG
 
             echo "[3/10] SSO Server - kill old process" >> $LOG
-            # pkill 패턴이 자기 자신을 죽이지 않도록 pid 필터링
-            SSO_OLD_PID=$(pgrep -f 'sso-server.*\.jar' || true)
-            if [ -n "$SSO_OLD_PID" ]; then
-              kill $SSO_OLD_PID >> $LOG 2>&1 || true
-              echo "killed PID: $SSO_OLD_PID" >> $LOG
+            PID_FILE=/home/ju/authfusion-platform/sso-server.pid
+            if [ -f "$PID_FILE" ]; then
+              OLD_PID=$(cat $PID_FILE)
+              kill $OLD_PID >> $LOG 2>&1 || true
+              echo "killed PID: $OLD_PID" >> $LOG
               sleep 2
             else
-              echo "no process to kill" >> $LOG
+              echo "no pid file" >> $LOG
             fi
             echo "[3/10] DONE" >> $LOG
 
@@ -69,8 +69,9 @@ jobs:
             setsid java -jar target/sso-server-1.0.0-SNAPSHOT.jar \
               --spring.profiles.active=prod \
               > /home/ju/authfusion-platform/sso-server.log 2>&1 &
-            disown
             SSO_PID=$!
+            echo $SSO_PID > /home/ju/authfusion-platform/sso-server.pid
+            disown
             echo "SSO Server PID: $SSO_PID" >> $LOG
             echo "[5/10] DONE" >> $LOG
 
