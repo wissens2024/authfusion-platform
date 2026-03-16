@@ -53,8 +53,8 @@ jobs:
   # SSO Server 배포 
   # --------------------------------------------------------------------------
   deploy-sso-server:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.sso-server == 'true'
+    needs: [detect-changes, deploy-admin-console]
+    if: always() && needs.detect-changes.outputs.sso-server == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Deploy SSO Server via SSH
@@ -68,12 +68,12 @@ jobs:
           script: |
             export PATH="/usr/bin:/usr/local/bin:$PATH"
 
-            # 먼저 기존 프로세스 종료 (git reset 전에)
+            # 먼저 기존 프로세스 종료
             pkill -f 'sso-server-1.0.0-SNAPSHOT' || true
             sleep 2
 
             cd /home/ju/authfusion-platform
-            git fetch --force origin main
+            git fetch origin main
             git reset --hard origin/main
 
             cd products/sso-server
