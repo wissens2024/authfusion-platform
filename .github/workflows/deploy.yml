@@ -13,116 +13,42 @@ on:
       - '.github/workflows/**'
 
 jobs:
-  # --------------------------------------------------------------------------
-  # 변경 감지
-  # --------------------------------------------------------------------------
-  detect-changes:
-    runs-on: ubuntu-latest
-    outputs:
-      sso-server: ${{ steps.changes.outputs.sso-server }}
-      admin-console: ${{ steps.changes.outputs.admin-console }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
-      - id: changes
-        run: |
-          CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only HEAD)
-
-          # Workflow 변경 → 전체 배포
-          if echo "$CHANGED" | grep -qE '^\.github/workflows/'; then
-            echo "sso-server=true" >> "$GITHUB_OUTPUT"
-            echo "admin-console=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          if echo "$CHANGED" | grep -qE '^products/sso-server/'; then
-            echo "sso-server=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "sso-server=false" >> "$GITHUB_OUTPUT"
-          fi
-
-          if echo "$CHANGED" | grep -qE '^products/admin-console/'; then
-            echo "admin-console=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "admin-console=false" >> "$GITHUB_OUTPUT"
-          fi
-
-  # --------------------------------------------------------------------------
-  # SSO Server 배포 
-  # --------------------------------------------------------------------------
-  deploy-sso-server:
-    needs: [detect-changes, deploy-admin-console]
-    if: always() && needs.detect-changes.outputs.sso-server == 'true'
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy SSO Server via SSH
+      - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          timeout: 300s
           command_timeout: 10m
           script: |
-            export PATH="/usr/bin:/usr/local/bin:$PATH"
-
-            # 먼저 기존 프로세스 종료
-            pkill -f 'sso-server-1.0.0-SNAPSHOT' || true
-            sleep 2
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+            export PATH="$HOME/.local/share/pnpm:$HOME/.npm-global/bin:/usr/bin:/usr/local/bin:$PATH"
 
             cd /home/ju/authfusion-platform
             git fetch origin main
             git reset --hard origin/main
 
+            # ── SSO Server ──
+            pkill -f 'sso-server-1.0.0-SNAPSHOT' || true
+            sleep 2
             cd products/sso-server
-            echo "--- java: $(which java) ---"
-            echo "--- mvn: $(which mvn) ---"
             mvn clean package -DskipTests -q
-            echo "--- build done ---"
-
-            # 새 프로세스 시작 (세션 완전 분리)
             setsid java -jar target/sso-server-1.0.0-SNAPSHOT.jar \
               --spring.profiles.active=prod \
               > /home/ju/authfusion-platform/sso-server.log 2>&1 &
             disown
-            echo "✓ SSO Server deploy done"
+            echo "✓ SSO Server deployed"
 
-  # --------------------------------------------------------------------------
-  # Admin Console 배포
-  # --------------------------------------------------------------------------
-  deploy-admin-console:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.admin-console == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy Admin Console via SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          timeout: 300s
-          command_timeout: 10m
-          script: |
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-            export PATH="$HOME/.local/share/pnpm:$HOME/.npm-global/bin:$PATH"
-
-            cd /home/ju/authfusion-platform
-            git fetch --force origin main
-            git reset --hard origin/main
-
-            cd products/admin-console
+            # ── Admin Console ──
+            cd /home/ju/authfusion-platform/products/admin-console
             npm ci
             NEXT_PUBLIC_SSO_SERVER_URL=https://sso.aines.kr npm run build
-
-            # standalone에 static/public 복사 (CSS/JS 필수)
             cp -r .next/static .next/standalone/.next/static
             [ -d public ] && cp -r public .next/standalone/public
-
-            # pm2 재시작
             pm2 delete authfusion-admin 2>/dev/null || true
             pm2 start ecosystem.config.js
             pm2 save
