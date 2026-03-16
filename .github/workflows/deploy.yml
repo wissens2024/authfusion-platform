@@ -47,8 +47,15 @@ jobs:
             echo "[2/10] DONE" >> $LOG
 
             echo "[3/10] SSO Server - kill old process" >> $LOG
-            pkill -f 'sso-server-1.0.0-SNAPSHOT' >> $LOG 2>&1 || echo "no process to kill" >> $LOG
-            sleep 2
+            # pkill 패턴이 자기 자신을 죽이지 않도록 pid 필터링
+            SSO_OLD_PID=$(pgrep -f 'sso-server.*\.jar' || true)
+            if [ -n "$SSO_OLD_PID" ]; then
+              kill $SSO_OLD_PID >> $LOG 2>&1 || true
+              echo "killed PID: $SSO_OLD_PID" >> $LOG
+              sleep 2
+            else
+              echo "no process to kill" >> $LOG
+            fi
             echo "[3/10] DONE" >> $LOG
 
             echo "[4/10] SSO Server - mvn build" >> $LOG
