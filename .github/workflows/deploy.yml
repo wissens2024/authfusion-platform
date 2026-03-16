@@ -23,88 +23,34 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           command_timeout: 10m
           script: |
-            LOG=/home/ju/authfusion-platform/deploy.log
-            echo "========================================" >> $LOG
-            echo "DEPLOY START: $(date)" >> $LOG
-            echo "========================================" >> $LOG
-
-            echo "[1/10] 환경 설정" >> $LOG
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
-            export PATH="$HOME/.local/share/pnpm:$HOME/.npm-global/bin:/usr/bin:/usr/local/bin:$PATH"
-            echo "PATH: $PATH" >> $LOG
-            echo "java: $(which java 2>&1)" >> $LOG
-            echo "mvn: $(which mvn 2>&1)" >> $LOG
-            echo "node: $(which node 2>&1)" >> $LOG
-            echo "npm: $(which npm 2>&1)" >> $LOG
-            echo "pm2: $(which pm2 2>&1)" >> $LOG
-            echo "[1/10] DONE" >> $LOG
+            export PATH="$HOME/.local/share/pnpm:$HOME/.npm-global/bin:$PATH"
 
-            echo "[2/10] git pull" >> $LOG
             cd /home/ju/authfusion-platform
-            git fetch origin main >> $LOG 2>&1
-            git reset --hard origin/main >> $LOG 2>&1
-            echo "[2/10] DONE" >> $LOG
+            git fetch origin main
+            git reset --hard origin/main
 
-            echo "[3/10] SSO Server - kill old process" >> $LOG
+            # ── SSO Server ──
             PID_FILE=/home/ju/authfusion-platform/sso-server.pid
             if [ -f "$PID_FILE" ]; then
-              OLD_PID=$(cat $PID_FILE)
-              kill $OLD_PID >> $LOG 2>&1 || true
-              echo "killed PID: $OLD_PID" >> $LOG
+              kill $(cat $PID_FILE) 2>/dev/null || true
               sleep 2
-            else
-              echo "no pid file" >> $LOG
             fi
-            echo "[3/10] DONE" >> $LOG
-
-            echo "[4/10] SSO Server - mvn build" >> $LOG
-            cd /home/ju/authfusion-platform/products/sso-server
-            mvn clean package -DskipTests -q >> $LOG 2>&1
-            echo "mvn exit code: $?" >> $LOG
-            ls -la target/sso-server-*.jar >> $LOG 2>&1
-            echo "[4/10] DONE" >> $LOG
-
-            echo "[5/10] SSO Server - start java" >> $LOG
+            cd products/sso-server
+            mvn clean package -DskipTests -q
             setsid java -jar target/sso-server-1.0.0-SNAPSHOT.jar \
               --spring.profiles.active=prod \
               > /home/ju/authfusion-platform/sso-server.log 2>&1 &
-            SSO_PID=$!
-            echo $SSO_PID > /home/ju/authfusion-platform/sso-server.pid
+            echo $! > $PID_FILE
             disown
-            echo "SSO Server PID: $SSO_PID" >> $LOG
-            echo "[5/10] DONE" >> $LOG
 
-            echo "[6/10] Admin Console - npm ci" >> $LOG
+            # ── Admin Console ──
             cd /home/ju/authfusion-platform/products/admin-console
-            npm ci >> $LOG 2>&1
-            echo "npm ci exit code: $?" >> $LOG
-            echo "[6/10] DONE" >> $LOG
-
-            echo "[7/10] Admin Console - build" >> $LOG
-            NEXT_PUBLIC_SSO_SERVER_URL=https://sso.aines.kr npm run build >> $LOG 2>&1
-            echo "npm build exit code: $?" >> $LOG
-            echo "[7/10] DONE" >> $LOG
-
-            echo "[8/10] Admin Console - copy static" >> $LOG
-            cp -r .next/static .next/standalone/.next/static >> $LOG 2>&1
-            [ -d public ] && cp -r public .next/standalone/public >> $LOG 2>&1
-            echo "[8/10] DONE" >> $LOG
-
-            echo "[9/10] Admin Console - pm2 restart" >> $LOG
-            pm2 delete authfusion-admin >> $LOG 2>&1 || echo "no pm2 process" >> $LOG
-            pm2 start ecosystem.config.js >> $LOG 2>&1
-            pm2 save >> $LOG 2>&1
-            echo "[9/10] DONE" >> $LOG
-
-            echo "[10/10] Health check" >> $LOG
-            sleep 5
-            curl -s http://localhost:8081/actuator/health >> $LOG 2>&1 || echo "SSO Server not ready yet" >> $LOG
-            curl -s http://localhost:3001 >> /dev/null 2>&1 && echo "Admin Console: OK" >> $LOG || echo "Admin Console: FAIL" >> $LOG
-            echo "[10/10] DONE" >> $LOG
-
-            echo "========================================" >> $LOG
-            echo "DEPLOY END: $(date)" >> $LOG
-            echo "========================================" >> $LOG
-
-            echo "✓ Deploy complete"
+            npm ci --silent
+            NEXT_PUBLIC_SSO_SERVER_URL=https://sso.aines.kr npm run build
+            cp -r .next/static .next/standalone/.next/static
+            [ -d public ] && cp -r public .next/standalone/public
+            pm2 delete authfusion-admin 2>/dev/null || true
+            pm2 start ecosystem.config.js
+            pm2 save
