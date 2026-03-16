@@ -72,9 +72,9 @@ jobs:
             mvn clean package -DskipTests -q
 
             # 기존 프로세스 종료 & 재시작
-            pkill -f 'authfusion-sso-server' || true
+            pkill -f 'sso-server-1.0.0-SNAPSHOT' || true
             sleep 2
-            nohup java -jar target/authfusion-sso-server-*.jar \
+            nohup java -jar target/sso-server-1.0.0-SNAPSHOT.jar \
               --spring.profiles.active=prod \
               > /home/ju/authfusion-platform/sso-server.log 2>&1 &
 

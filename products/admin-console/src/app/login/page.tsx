@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { authApi } from '@/lib/api';
-import { setAccessToken } from '@/lib/auth';
+import { setAuth, clearAuth } from '@/lib/auth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -25,8 +25,7 @@ export default function LoginPage() {
         setMfaToken(data.mfaToken);
         setShowMfa(true);
       } else {
-        setAccessToken(data.accessToken);
-        router.push('/');
+        completeLogin(data);
       }
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { message?: string } } };
@@ -42,14 +41,34 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const { data } = await authApi.mfaVerify({ mfaToken, code: mfaCode });
-      setAccessToken(data.accessToken);
-      router.push('/');
+      completeLogin(data);
     } catch (err: unknown) {
       const axiosError = err as { response?: { data?: { message?: string } } };
       setError(axiosError.response?.data?.message || 'MFA 인증에 실패했습니다.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const completeLogin = (data: { accessToken: string; expiresIn: number; user?: { roles?: string[] } }) => {
+    // ADMIN 역할 검증 (FDP_ACC.1)
+    const userRoles = data.user?.roles || [];
+    // JWT 클레임에서도 역할 확인
+    let jwtRoles: string[] = [];
+    try {
+      const payload = JSON.parse(atob(data.accessToken.split('.')[1]));
+      jwtRoles = payload.roles || [];
+    } catch { /* ignore */ }
+
+    const roles = userRoles.length > 0 ? userRoles : jwtRoles;
+    if (!roles.includes('ADMIN')) {
+      clearAuth();
+      setError('관리자 권한이 없습니다. ADMIN 역할이 필요합니다.');
+      return;
+    }
+
+    setAuth(data.accessToken, data.expiresIn);
+    router.push('/');
   };
 
   return (
@@ -75,6 +94,7 @@ export default function LoginPage() {
                 className="input-field"
                 required
                 autoFocus
+                autoComplete="username"
               />
             </div>
             <div>
@@ -85,6 +105,7 @@ export default function LoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="input-field"
                 required
+                autoComplete="current-password"
               />
             </div>
             <button type="submit" disabled={loading} className="btn-primary w-full">
@@ -103,8 +124,10 @@ export default function LoginPage() {
                 className="input-field text-center text-lg tracking-widest"
                 maxLength={6}
                 pattern="[0-9]{6}"
+                inputMode="numeric"
                 required
                 autoFocus
+                autoComplete="one-time-code"
               />
             </div>
             <button type="submit" disabled={loading} className="btn-primary w-full">
@@ -112,7 +135,7 @@ export default function LoginPage() {
             </button>
             <button
               type="button"
-              onClick={() => { setShowMfa(false); setError(''); }}
+              onClick={() => { setShowMfa(false); setMfaCode(''); setError(''); }}
               className="btn-secondary w-full"
             >
               뒤로

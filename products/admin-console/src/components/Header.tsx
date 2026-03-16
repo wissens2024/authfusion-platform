@@ -3,19 +3,27 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
-import { clearAccessToken, getCurrentUser } from '@/lib/auth';
+import { clearAuth, getCurrentUser } from '@/lib/auth';
+import { authApi } from '@/lib/api';
 
 export default function Header() {
   const router = useRouter();
-  const [user, setUser] = useState<{ sub: string; roles: string[]; email?: string } | null>(null);
+  const [user, setUser] = useState<{ sub: string; username: string; roles: string[]; email?: string } | null>(null);
 
   useEffect(() => {
     setUser(getCurrentUser());
   }, []);
 
-  const handleLogout = () => {
-    clearAccessToken();
-    router.push('/login');
+  const handleLogout = async () => {
+    try {
+      // 서버 세션 무효화 (FAU_GEN.1 - 로그아웃 감사 이벤트 생성)
+      await authApi.logout();
+    } catch {
+      // 서버 호출 실패해도 로컬 세션은 정리
+    } finally {
+      clearAuth();
+      router.push('/login');
+    }
   };
 
   return (
@@ -24,7 +32,7 @@ export default function Header() {
       <div className="flex items-center gap-4">
         {user && (
           <span className="text-sm text-gray-600">
-            {user.sub}
+            {user.username}
             {user.roles.length > 0 && (
               <span className="ml-2 text-xs text-gray-400">({user.roles.join(', ')})</span>
             )}

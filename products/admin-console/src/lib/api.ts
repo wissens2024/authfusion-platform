@@ -4,15 +4,18 @@ import type {
   Role, RoleCreateRequest, Session, AuditEvent, AuditStatistics,
   HealthStatus, LoginRequest, LoginResponse, MfaVerifyRequest, PageResponse,
 } from './types';
+import { getAccessToken, clearAuth } from './auth';
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_SSO_SERVER_URL || 'http://localhost:8081',
   headers: { 'Content-Type': 'application/json' },
+  timeout: 15_000,
 });
 
+// 요청 인터셉터: Bearer 토큰 자동 주입
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('accessToken');
+    const token = getAccessToken(); // 만료 검증 포함
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -20,11 +23,12 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+// 응답 인터셉터: 401 시 세션 정리 후 로그인 페이지로
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
+      clearAuth();
       window.location.href = '/login';
     }
     return Promise.reject(error);
