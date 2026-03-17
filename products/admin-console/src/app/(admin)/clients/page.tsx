@@ -8,6 +8,15 @@ import LoadingSpinner from '@/components/LoadingSpinner';
 import { clientApi } from '@/lib/api';
 import type { Client } from '@/lib/types';
 
+const isValidUrl = (url: string): boolean => {
+  try {
+    const parsed = new URL(url);
+    return ['http:', 'https:'].includes(parsed.protocol);
+  } catch {
+    return false;
+  }
+};
+
 export default function ClientsPage() {
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
@@ -35,12 +44,17 @@ export default function ClientsPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    const uris = form.redirectUris.split('\n').map(s => s.trim()).filter(Boolean);
+    if (uris.length > 0 && !uris.every(isValidUrl)) {
+      setError('유효하지 않은 Redirect URI가 포함되어 있습니다.');
+      return;
+    }
     try {
       await clientApi.create({
         clientId: form.clientId,
         clientName: form.clientName,
         clientType: form.clientType,
-        redirectUris: form.redirectUris.split('\n').map(s => s.trim()).filter(Boolean),
+        redirectUris: uris,
         scopes: form.scopes.split(' ').filter(Boolean),
         grantTypes: form.grantTypes.split(' ').filter(Boolean),
         requirePkce: form.requirePkce,
@@ -48,8 +62,10 @@ export default function ClientsPage() {
       setShowCreate(false);
       loadClients();
     } catch (err: unknown) {
-      const axiosError = err as { response?: { data?: { message?: string } } };
-      setError(axiosError.response?.data?.message || '생성에 실패했습니다.');
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 403) setError('권한이 없습니다.');
+      else if (status === 409) setError('이미 존재하는 클라이언트입니다.');
+      else setError('클라이언트 생성에 실패했습니다.');
     }
   };
 

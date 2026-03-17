@@ -21,7 +21,8 @@ public class PkceValidator {
         }
 
         if ("plain".equals(codeChallengeMethod)) {
-            return codeChallenge.equals(codeVerifier);
+            log.warn("PKCE 'plain' method is not allowed. Only S256 is supported.");
+            return false;
         }
 
         // Default to S256

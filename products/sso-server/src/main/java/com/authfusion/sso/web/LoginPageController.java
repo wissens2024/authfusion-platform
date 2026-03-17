@@ -179,9 +179,11 @@ public class LoginPageController {
 
         Cookie sessionCookie = new Cookie("SSO_SESSION", session.getSessionId());
         sessionCookie.setHttpOnly(true);
+        sessionCookie.setSecure(true);
         sessionCookie.setPath("/");
         sessionCookie.setMaxAge((int) (session.getExpiresAt().getEpochSecond() -
                 session.getCreatedAt().getEpochSecond()));
+        sessionCookie.setAttribute("SameSite", "Strict");
         httpResponse.addCookie(sessionCookie);
 
         if (clientId != null && redirectUri != null) {

@@ -38,8 +38,10 @@ export default function UsersPage() {
       setForm({ username: '', email: '', password: '', firstName: '', lastName: '' });
       loadUsers();
     } catch (err: unknown) {
-      const axiosError = err as { response?: { data?: { message?: string } } };
-      setError(axiosError.response?.data?.message || '생성에 실패했습니다.');
+      const status = (err as { response?: { status?: number } })?.response?.status;
+      if (status === 403) setError('권한이 없습니다.');
+      else if (status === 409) setError('이미 존재하는 사용자입니다.');
+      else setError('사용자 생성에 실패했습니다.');
     }
   };
 

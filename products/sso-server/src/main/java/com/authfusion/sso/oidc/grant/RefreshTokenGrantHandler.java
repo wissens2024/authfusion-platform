@@ -52,7 +52,10 @@ public class RefreshTokenGrantHandler implements GrantHandler {
         // (For flexibility, we allow tokens that aren't tracked to still be refreshed if JWT is valid)
 
         String clientId = claims.getClientId();
-        if (request.getClientId() != null && !request.getClientId().equals(clientId)) {
+        if (request.getClientId() == null) {
+            throw new IllegalArgumentException("client_id is required for refresh token grant");
+        }
+        if (!request.getClientId().equals(clientId)) {
             throw new IllegalArgumentException("Client ID mismatch");
         }
 

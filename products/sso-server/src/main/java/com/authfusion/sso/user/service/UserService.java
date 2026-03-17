@@ -288,7 +288,7 @@ public class UserService {
         if (entity.getStatus() == UserStatus.LOCKED) {
             if (entity.getLockedUntil() != null && entity.getLockedUntil().isAfter(LocalDateTime.now())) {
                 throw new AuthenticationException(
-                        "Account is locked. Please try again after " + entity.getLockedUntil());
+                        "Account is temporarily locked. Please try again later.");
             }
             // Lock period expired, unlock the account
             entity.setStatus(UserStatus.ACTIVE);
@@ -298,7 +298,7 @@ public class UserService {
 
         // Check if account is inactive or pending
         if (entity.getStatus() != UserStatus.ACTIVE) {
-            throw new AuthenticationException("Account is not active. Current status: " + entity.getStatus());
+            throw new AuthenticationException("Account is not active.");
         }
 
         // Verify password

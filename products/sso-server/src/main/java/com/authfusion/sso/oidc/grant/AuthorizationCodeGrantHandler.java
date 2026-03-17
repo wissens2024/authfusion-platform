@@ -75,9 +75,13 @@ public class AuthorizationCodeGrantHandler implements GrantHandler {
             }
         }
 
-        // Mark code as used
-        jdbcTemplate.update("UPDATE sso_authorization_codes SET used = TRUE WHERE code = ?",
+        // Mark code as used atomically to prevent reuse race condition
+        int updated = jdbcTemplate.update(
+                "UPDATE sso_authorization_codes SET used = TRUE WHERE code = ? AND used = FALSE",
                 request.getCode());
+        if (updated == 0) {
+            throw new IllegalArgumentException("Authorization code already used or expired");
+        }
 
         UUID userId = (UUID) authCode.get("user_id");
         String scope = (String) authCode.get("scope");
