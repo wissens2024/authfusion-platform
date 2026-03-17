@@ -33,13 +33,20 @@ public class KeyEncryptionService {
     private final SecretKey masterKey;
 
     public KeyEncryptionService(
-            @Value("${authfusion.sso.jwt.master-secret:#{null}}") String masterSecret) {
+            @Value("${authfusion.sso.jwt.master-secret:#{null}}") String masterSecret,
+            @Value("${authfusion.sso.cc.extended-features-enabled:true}") boolean extendedFeaturesEnabled) {
+        boolean ccMode = !extendedFeaturesEnabled;
         if (masterSecret == null || masterSecret.isBlank()) {
             masterSecret = System.getenv("AUTHFUSION_KEY_MASTER_SECRET");
         }
         if (masterSecret == null || masterSecret.isBlank()) {
-            log.warn("AUTHFUSION_KEY_MASTER_SECRET이 설정되지 않았습니다. "
-                    + "기본 키를 사용합니다. 운영 환경에서는 반드시 환경변수를 설정하세요.");
+            if (ccMode) {
+                throw new IllegalStateException(
+                        "CC 모드에서는 AUTHFUSION_KEY_MASTER_SECRET 환경변수를 반드시 설정해야 합니다. "
+                        + "기본 마스터 키 사용이 허용되지 않습니다.");
+            }
+            log.warn("⚠ AUTHFUSION_KEY_MASTER_SECRET 미설정! 개발용 기본 키를 사용합니다. "
+                    + "운영 환경에서는 반드시 설정하세요.");
             masterSecret = "authfusion-default-master-key-change-me-in-production";
         }
         this.masterKey = deriveKey(masterSecret);

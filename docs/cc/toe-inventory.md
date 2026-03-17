@@ -46,18 +46,20 @@ CC(Common Criteria) 평가 범위를 명확히 한다.
 | `oidc.service` | `ScopeService` | TOE | FDP_ACC.1 | OAuth2 스코프 관리 및 검증 |
 | `oidc.service` | `TokenService` | TOE | FCS_COP.1 | 토큰 생성/검증/폐기 통합 서비스 |
 
-### 2.4 JWT 모듈 (jwt)
+### 2.4 JWT 모듈 (jwt) - **필수 TOE 구성요소 (CC 평가 필수 포함)**
+
+> **키 관리(RSA 키 생성/서명/로테이션/암호화 저장)는 TOE 필수 구성요소이며, Extension으로 분리할 수 없다.**
 
 | 패키지 | 파일 | 분류 | SFR | 설명 |
 |--------|------|------|-----|------|
-| `jwt` | `JwtTokenProvider` | TOE | FCS_COP.1 | JWT 토큰 생성 (RS256 서명) |
-| `jwt` | `JwtTokenParser` | TOE | FCS_COP.1 | JWT 토큰 파싱 및 서명 검증 |
-| `jwt` | `JwkProvider` | TOE | FCS_CKM.1 | JWK(JSON Web Key) 형식 공개키 제공 |
-| `jwt` | `KeyPairManager` | TOE | FCS_CKM.1 | RSA 키 페어 생성/관리/로테이션 |
-| `jwt` | `KeyEncryptionService` | TOE | FCS_COP.1 | 서명키 암호화 보관 (AES-256-GCM) |
-| `jwt` | `TokenClaims` | TOE | - | JWT 클레임 데이터 모델 |
-| `jwt` | `SigningKeyEntity` | TOE | - | 서명키 영속화 엔티티 |
-| `jwt` | `SigningKeyRepository` | TOE | - | 서명키 JPA 리포지토리 |
+| `jwt` | `JwtTokenProvider` | **TOE [필수]** | FCS_COP.1 | JWT 토큰 생성 (RS256 서명) |
+| `jwt` | `JwtTokenParser` | **TOE [필수]** | FCS_COP.1 | JWT 토큰 파싱 및 서명 검증 |
+| `jwt` | `JwkProvider` | **TOE [필수]** | FCS_CKM.1 | JWK(JSON Web Key) 형식 공개키 제공 |
+| `jwt` | `KeyPairManager` | **TOE [필수]** | FCS_CKM.1 | RSA 키 페어 생성/관리/로테이션 |
+| `jwt` | `KeyEncryptionService` | **TOE [필수]** | FCS_COP.1 | 서명키 암호화 보관 (AES-256-GCM) |
+| `jwt` | `TokenClaims` | **TOE [필수]** | - | JWT 클레임 데이터 모델 |
+| `jwt` | `SigningKeyEntity` | **TOE [필수]** | - | 서명키 영속화 엔티티 |
+| `jwt` | `SigningKeyRepository` | **TOE [필수]** | - | 서명키 JPA 리포지토리 |
 
 ### 2.5 사용자 인증 (user)
 
@@ -69,7 +71,21 @@ CC(Common Criteria) 평가 범위를 명확히 한다.
 | `user.service` | `AuthService` | TOE | FIA_UAU.1 | 인증 처리 (자격증명 검증) |
 | `user.service` | `PasswordHashService` | TOE | FCS_COP.1 | 비밀번호 해싱 (BCrypt/Argon2) |
 
-### 2.6 클라이언트 관리 (client)
+### 2.6 MFA 모듈 (mfa) - **필수 TOE 구성요소 (CC 평가 필수 포함)**
+
+> **MFA(TOTP)는 TOE 필수 구성요소이며, Extension으로 분리할 수 없다.**
+
+| 패키지 | 파일 | 분류 | SFR | 설명 |
+|--------|------|------|-----|------|
+| `mfa` | `TotpService` | **TOE [필수]** | FIA_UAU.5, FCS_COP.1 | TOTP 코드 생성/검증 (RFC 6238, HMAC-SHA1) |
+| `mfa` | `MfaSessionService` | **TOE [필수]** | FIA_UAU.5 | MFA 대기 세션 관리 |
+| `mfa` | `MfaController` | **TOE [필수]** | FIA_UAU.5 | MFA API 엔드포인트 (`/api/v1/mfa/*`) |
+| `mfa` | `RecoveryCodeService` | **TOE [필수]** | FIA_UAU.5 | 복구 코드 생성/검증 (BCrypt 해싱) |
+| `mfa` | `TotpSecretEntity` | **TOE [필수]** | - | TOTP 시크릿 영속화 엔티티 (AES-256-GCM 암호화) |
+| `mfa` | `RecoveryCodeEntity` | **TOE [필수]** | - | 복구 코드 영속화 엔티티 |
+| `mfa` | `MfaPendingSessionEntity` | **TOE [필수]** | - | MFA 대기 세션 엔티티 |
+
+### 2.7 클라이언트 관리 (client)
 
 | 패키지 | 파일 | 분류 | SFR | 설명 |
 |--------|------|------|-----|------|
@@ -149,22 +165,46 @@ CC(Common Criteria) 평가 범위를 명확히 한다.
 
 ---
 
-## 4. 통계 요약
+## 4. Admin Console 소스코드 인벤토리 (products/admin-console) - TOE
 
-| 분류 | 파일 수 | 비율 |
-|------|---------|------|
-| TOE | 48 | 약 80% |
-| EXT | 9 | 약 15% |
-| SHARED | 3 | 약 5% |
-| **합계** | **60** | **100%** |
+Admin Console은 관리 보안 기능(사용자 관리, 감사 로그 조회, 정책 관리)을 제공하므로 TOE에 포함한다.
+
+| 디렉터리/파일 | 분류 | SFR | 설명 |
+|---------------|------|-----|------|
+| `src/app/login/` | **TOE** | FIA_UAU.1 | 관리자 로그인 페이지 |
+| `src/app/dashboard/` | **TOE** | FMT_SMF.1 | 대시보드 (인증 통계, 시스템 상태) |
+| `src/app/users/` | **TOE** | FMT_SMF.1 | 사용자 관리 페이지 |
+| `src/app/clients/` | **TOE** | FMT_SMF.1 | 클라이언트 관리 페이지 |
+| `src/app/roles/` | **TOE** | FDP_ACC.1 | 역할 관리 페이지 |
+| `src/app/sessions/` | **TOE** | FTA_SSL.3 | 세션 모니터링/관리 페이지 |
+| `src/app/audit/` | **TOE** | FAU_SAR.1 | 감사 로그 조회 페이지 |
+| `src/app/settings/` | **TOE** | FMT_SMF.1 | 시스템 설정 페이지 |
+| `src/lib/api.ts` | **TOE** | - | SSO Server API 클라이언트 |
+| `src/components/` | **TOE** | - | 공통 UI 컴포넌트 (Sidebar, Header 등) |
 
 ---
 
-## 5. SFR 매핑 요약
+## 5. 통계 요약
+
+| 분류 | 파일 수 | 비율 |
+|------|---------|------|
+| TOE (SSO Server) | 48 + 7(MFA) | 약 72% |
+| TOE (Admin Console) | 10 | 약 13% |
+| TOE (SSO Agent) | 9 | 약 12% |
+| EXT | 9 | 약 12% |
+| SHARED | 3 | 약 4% |
+| **합계** | **약 77** | **100%** |
+
+> 주: MFA 7개 파일과 Admin Console 10개 파일이 TOE 필수로 추가됨.
+
+---
+
+## 6. SFR 매핑 요약
 
 | SFR | 관련 TOE 파일 수 | 주요 기능 영역 |
 |-----|------------------|----------------|
-| FIA_UAU.1 | 12 | 사용자/클라이언트 인증 |
+| FIA_UAU.1 | 13 | 사용자/클라이언트 인증 |
+| FIA_UAU.5 | 7 | 복합 인증 메커니즘 (ID/PW + TOTP) [필수] |
 | FIA_UID.1 | 1 | 사용자 식별 |
 | FIA_AFL.1 | 3 | 인증 실패 대응 (계정 잠금) |
 | FIA_USB.1 | 1 | 사용자-주체 바인딩 |
@@ -179,11 +219,13 @@ CC(Common Criteria) 평가 범위를 명확히 한다.
 | FAU_SAR.1 | 1 | 감사 검토 |
 | FTA_SSL.3 | 4 | 세션 종료 |
 | FTP_TRP.1 | 2 | 신뢰 경로/채널 |
+| FMT_SMF.1 | 4 | 관리 기능 (Admin Console) |
 
 ---
 
-## 6. 변경 이력
+## 7. 변경 이력
 
 | 버전 | 날짜 | 작성자 | 변경 내용 |
 |------|------|--------|-----------|
 | 1.0 | 2026-03-03 | AuthFusion Team | 초기 작성 |
+| 1.1 | 2026-03-17 | AuthFusion Team | MFA 모듈 필수 TOE 추가, JWT 모듈 필수 표기, Admin Console 인벤토리 추가, FIA_UAU.5/FMT_SMF.1 추가 |

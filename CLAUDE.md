@@ -69,11 +69,18 @@ authfusion-platform/
 - **3층 구조**: AuthFusion SSO Server(TOE) + 선택형 SSO Agent(TOE) + 외부 운영환경(비-TOE PostgreSQL DB 포함)
 - **TOE 포함 구성요소 최소 세트**
   * SSO Server 런타임 (Spring Boot OIDC Provider)
-  * 관리자 UI/Web 콘솔
-  * 감사로그 생성·보관 기능
+  * Admin Console 관리 UI (Next.js) - **필수** (관리 보안 기능: 사용자/클라이언트/역할 관리, 감사 로그 조회, 시스템 설정)
+  * 감사로그 생성·보관·조회 기능
   * 토큰/세션/정책 결정 로직
-  * MFA (TOTP) 인증 기능
+  * MFA (TOTP) 인증 기능 - **필수** (RFC 6238, ID/PW + TOTP 복합 인증, 복구 코드)
+  * JWT 키 관리 (RSA 키 생성/서명/로테이션/암호화 저장) - **필수** (AES-256-GCM)
   * (선택) 레거시 앱용 SSO Agent – Servlet Filter 기반
+- **Extension (비-TOE, CC 모드에서 비활성화)**
+  * FIDO2/WebAuthn (향후)
+  * SAML 프로토콜 (향후)
+  * SCIM 프로비저닝 (향후)
+  * 외부 IdP 연동 (향후)
+  * LDAP 연동 (외부 시스템 의존)
 - **운영환경(비-TOE)**
   * DBMS (PostgreSQL) – 제품 자체를 TOE로 만들지 않음
   * 디렉터리(AD/LDAP) – 외부 사용자 저장소
@@ -88,10 +95,12 @@ authfusion-platform/
 이 지침은 CC 평가를 효율화하면서 제품을 경량화하고, 운영환경에서 차별화를 추구하기 위한 전략을 담고 있습니다.
 
 ## TOE Boundary Enforcement
-- **디렉토리 수준**: `products/` = TOE, `platform/` = 비-TOE
+- **디렉토리 수준**: `products/sso-server/` = TOE, `products/admin-console/` = TOE, `products/sso-agent/` = TOE, `platform/` = 비-TOE
+- **필수 TOE 구성요소**: MFA(TOTP), JWT 키 관리, Admin Console은 TOE 필수이며 Extension으로 분리 불가
 - **어노테이션**: `@ToeScope` (TOE 코드), `@ExtendedFeature` (비-TOE 코드)
 - **조건부 활성화**: `@ConditionalOnExtendedMode` (CC 모드에서 비활성화)
 - **CC 설정**: `authfusion.sso.cc.extended-features-enabled=false`
+- **비-TOE Extension**: FIDO2/WebAuthn, SAML, SCIM, 외부 IdP 연동, LDAP 연동
 - **CI 검증**: `tools/cc/toe-diff.sh` (TOE 변경 감지), `tools/cc/config-linter.sh` (CC 설정 검증)
 
 ## Conventions

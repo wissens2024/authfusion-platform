@@ -118,6 +118,57 @@ public class AuthController {
         return ResponseEntity.ok(buildLoginResponse(user, session));
     }
 
+    @PostMapping("/refresh")
+    @Operation(summary = "Refresh access token",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Token refreshed"),
+                    @ApiResponse(responseCode = "401", description = "Invalid refresh token")
+            })
+    public ResponseEntity<LoginResponse> refresh(
+            @RequestBody java.util.Map<String, String> body,
+            HttpSession session) {
+        String refreshToken = body.get("refreshToken");
+        if (refreshToken == null || refreshToken.isBlank()) {
+            throw new AuthenticationException("Refresh token is required");
+        }
+
+        var claims = jwtTokenProvider.parseRefreshToken(refreshToken);
+        if (claims.isEmpty()) {
+            throw new AuthenticationException("Invalid or expired refresh token");
+        }
+
+        TokenClaims oldClaims = claims.get();
+        String tokenType = oldClaims.getScope(); // scope 확인
+        UserEntity user = userService.getUserEntity(java.util.UUID.fromString(oldClaims.getSub()));
+
+        List<String> roleNames = roleService.getUserRoles(user.getId()).stream()
+                .map(r -> r.getName()).toList();
+
+        TokenClaims newClaims = TokenClaims.builder()
+                .sub(user.getId().toString())
+                .preferredUsername(user.getUsername())
+                .email(user.getEmail())
+                .emailVerified(user.isEmailVerified())
+                .givenName(user.getFirstName())
+                .familyName(user.getLastName())
+                .roles(roleNames)
+                .scope("openid profile email roles")
+                .clientId(oldClaims.getClientId())
+                .build();
+
+        String newAccessToken = jwtTokenProvider.generateAccessToken(newClaims);
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(newClaims);
+
+        return ResponseEntity.ok(LoginResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
+                .tokenType("Bearer")
+                .expiresIn(jwtTokenProvider.getAccessTokenValidity())
+                .sessionId(session.getId())
+                .user(UserResponse.fromEntity(user))
+                .build());
+    }
+
     @PostMapping("/logout")
     @Operation(summary = "Logout user",
             responses = {@ApiResponse(responseCode = "204", description = "Logout successful")})
@@ -143,11 +194,13 @@ public class AuthController {
                 .build();
 
         String accessToken = jwtTokenProvider.generateAccessToken(claims);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(claims);
         session.setAttribute("userId", user.getId());
         session.setAttribute("username", user.getUsername());
 
         return LoginResponse.builder()
                 .accessToken(accessToken)
+                .refreshToken(refreshToken)
                 .tokenType("Bearer")
                 .expiresIn(jwtTokenProvider.getAccessTokenValidity())
                 .sessionId(session.getId())

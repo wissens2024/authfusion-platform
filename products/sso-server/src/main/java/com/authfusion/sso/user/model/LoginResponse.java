@@ -15,6 +15,7 @@ import lombok.*;
 public class LoginResponse {
 
     private String accessToken;
+    private String refreshToken;
     private String tokenType;
     private long expiresIn;
     private String sessionId;

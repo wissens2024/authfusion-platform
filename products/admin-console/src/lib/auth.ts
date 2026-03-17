@@ -1,6 +1,7 @@
 'use client';
 
 const ACCESS_TOKEN_KEY = 'accessToken';
+const REFRESH_TOKEN_KEY = 'refreshToken';
 const TOKEN_EXPIRY_KEY = 'tokenExpiresAt';
 const TOKEN_BUFFER_MS = 30_000; // 만료 30초 전에 만료 처리
 
@@ -11,23 +12,30 @@ export function getAccessToken(): string | null {
 
   // 만료 검증 (FIA_UAU.1)
   if (isTokenExpired(token)) {
-    clearAuth();
-    return null;
+    return null; // 만료 시 clearAuth 하지 않음 - refresh 시도 가능
   }
   return token;
 }
 
-export function setAuth(token: string, expiresIn: number): void {
+export function getRefreshToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+export function setAuth(accessToken: string, expiresIn: number, refreshToken?: string): void {
   if (typeof window === 'undefined') return;
-  localStorage.setItem(ACCESS_TOKEN_KEY, token);
-  // expiresIn(초) 기반으로 만료 시각 저장
+  localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
   const expiresAt = Date.now() + expiresIn * 1000;
   localStorage.setItem(TOKEN_EXPIRY_KEY, String(expiresAt));
+  if (refreshToken) {
+    localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  }
 }
 
 export function clearAuth(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
   localStorage.removeItem(TOKEN_EXPIRY_KEY);
 }
 
@@ -50,12 +58,12 @@ function isTokenExpired(token: string): boolean {
 }
 
 export function isAuthenticated(): boolean {
-  return !!getAccessToken();
+  // access token 유효하거나 refresh token이 있으면 인증 상태
+  return !!getAccessToken() || !!getRefreshToken();
 }
 
 /**
  * ADMIN 역할 검증 (FDP_ACC.1 - 접근 제어)
- * Admin Console은 ADMIN 역할만 접근 가능
  */
 export function isAdmin(): boolean {
   const user = getCurrentUser();
@@ -87,7 +95,10 @@ export function getCurrentUser(): {
   roles: string[];
   email?: string;
 } | null {
-  const token = getAccessToken();
+  // access token 또는 refresh token에서 사용자 정보 추출
+  const accessToken = localStorage.getItem(ACCESS_TOKEN_KEY);
+  const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+  const token = accessToken || refreshToken;
   if (!token) return null;
   const claims = parseJwt(token);
   if (!claims) return null;

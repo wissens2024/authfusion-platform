@@ -4,7 +4,7 @@ import type {
   Role, RoleCreateRequest, Session, AuditEvent, AuditStatistics,
   HealthStatus, LoginRequest, LoginResponse, MfaVerifyRequest, PageResponse,
 } from './types';
-import { getAccessToken, clearAuth } from './auth';
+import { getAccessToken, getRefreshToken, setAuth, clearAuth } from './auth';
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_SSO_SERVER_URL || 'http://localhost:8081',
@@ -12,10 +12,22 @@ const api = axios.create({
   timeout: 15_000,
 });
 
+let isRefreshing = false;
+let refreshSubscribers: ((token: string) => void)[] = [];
+
+function onTokenRefreshed(token: string) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
+function addRefreshSubscriber(cb: (token: string) => void) {
+  refreshSubscribers.push(cb);
+}
+
 // 요청 인터셉터: Bearer 토큰 자동 주입
 api.interceptors.request.use((config) => {
   if (typeof window !== 'undefined') {
-    const token = getAccessToken(); // 만료 검증 포함
+    const token = getAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -23,14 +35,56 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// 응답 인터셉터: 401 시 세션 정리 후 로그인 페이지로
+// 응답 인터셉터: 401 시 refresh token으로 갱신 시도
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401 && typeof window !== 'undefined') {
-      clearAuth();
-      window.location.href = '/login';
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (error.response?.status === 401 && typeof window !== 'undefined' && !originalRequest._retry) {
+      const refreshToken = getRefreshToken();
+
+      // refresh token이 없으면 로그인 페이지로
+      if (!refreshToken) {
+        clearAuth();
+        window.location.href = '/login';
+        return Promise.reject(error);
+      }
+
+      // refresh 요청이 이미 진행 중이면 대기
+      if (isRefreshing) {
+        return new Promise((resolve) => {
+          addRefreshSubscriber((newToken: string) => {
+            originalRequest.headers.Authorization = `Bearer ${newToken}`;
+            resolve(api(originalRequest));
+          });
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const { data } = await axios.post<LoginResponse>(
+          `${api.defaults.baseURL}/api/v1/auth/refresh`,
+          { refreshToken },
+          { headers: { 'Content-Type': 'application/json' }, timeout: 10_000 }
+        );
+
+        setAuth(data.accessToken, data.expiresIn, data.refreshToken);
+        onTokenRefreshed(data.accessToken);
+
+        originalRequest.headers.Authorization = `Bearer ${data.accessToken}`;
+        return api(originalRequest);
+      } catch {
+        clearAuth();
+        window.location.href = '/login';
+        return Promise.reject(error);
+      } finally {
+        isRefreshing = false;
+      }
     }
+
     return Promise.reject(error);
   }
 );

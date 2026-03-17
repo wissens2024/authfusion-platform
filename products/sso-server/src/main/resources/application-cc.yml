@@ -9,6 +9,7 @@ authfusion:
       mode: minimum
       extended-features-enabled: false
     jwt:
+      master-secret: ${AUTHFUSION_KEY_MASTER_SECRET:}  # CC 모드: 기본값 없음, 반드시 환경변수 설정 필요
       access-token-validity: 300        # 5분
       refresh-token-validity: 43200     # 12시간 (하드닝)
       id-token-validity: 3600           # 1시간

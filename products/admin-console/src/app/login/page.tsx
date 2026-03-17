@@ -50,7 +50,7 @@ export default function LoginPage() {
     }
   };
 
-  const completeLogin = (data: { accessToken: string; expiresIn: number; user?: { roles?: string[] } }) => {
+  const completeLogin = (data: { accessToken: string; refreshToken?: string; expiresIn: number; user?: { roles?: string[] } }) => {
     // ADMIN 역할 검증 (FDP_ACC.1)
     const userRoles = data.user?.roles || [];
     // JWT 클레임에서도 역할 확인
@@ -67,7 +67,7 @@ export default function LoginPage() {
       return;
     }
 
-    setAuth(data.accessToken, data.expiresIn);
+    setAuth(data.accessToken, data.expiresIn, data.refreshToken);
     router.push('/');
   };
 

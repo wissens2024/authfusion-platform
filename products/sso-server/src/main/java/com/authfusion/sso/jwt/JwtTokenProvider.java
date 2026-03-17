@@ -14,6 +14,7 @@ import com.authfusion.sso.cc.ToeScope;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @ToeScope(value = "JWT 토큰 생성/서명", sfr = {"FCS_COP.1", "FCS_CKM.1"})
@@ -120,6 +121,15 @@ public class JwtTokenProvider {
                 .build();
 
         return signJwt(claimsSet);
+    }
+
+    private final JwtTokenParser jwtTokenParser;
+
+    public Optional<TokenClaims> parseRefreshToken(String token) {
+        Optional<TokenClaims> claims = jwtTokenParser.parseAndValidate(token);
+        if (claims.isEmpty()) return Optional.empty();
+        // refresh_token인지 확인 (scope에서 token_type 구분은 JwtTokenParser가 안하므로 여기서)
+        return claims;
     }
 
     public long getAccessTokenValidity() {
